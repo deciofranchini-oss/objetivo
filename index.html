@@ -990,17 +990,27 @@ async function initYearFilter(){
   let years=[...new Set(rows.map(r=>r.academicYear))].filter(Boolean).sort();
   const now=new Date().getFullYear();
   if(!years.includes(now)) years.push(now);
-  if(!years.includes(now+1)) years.push(now+1);
   years.sort();
+
+  // Selector principal — Todos + anos da base
   const sel=$('yr-sel');
-  sel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  S.year=years.includes(now)?now:Math.max(...years);
-  sel.value=S.year;
-  sel.onchange=e=>{S.year=+e.target.value;if(S.tab==='dash')renderDash();if(S.tab==='txs')renderTxList();if(S.tab==='rpt')renderReport()};
-  // form year select
+  sel.innerHTML=
+    `<option value="all">Todos os anos</option>`+
+    years.map(y=>`<option value="${y}">${y===now?y+' (atual)':y}</option>`).join('');
+  // Padrao = ano atual
+  S.year=now;
+  sel.value=String(now);
+  sel.onchange=e=>{
+    S.year=e.target.value==='all'?'all':+e.target.value;
+    if(S.tab==='dash') renderDash();
+    if(S.tab==='txs')  renderTxList();
+    if(S.tab==='rpt')  renderReport();
+  };
+
+  // Selector do formulario — apenas anos concretos
   const fy=$('f-year');
   fy.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  fy.value=S.year;
+  fy.value=now;
 }
 
 // ══════════════════════════════════════════
@@ -1008,7 +1018,8 @@ async function initYearFilter(){
 // ══════════════════════════════════════════
 async function calcSummary(year){
   const rows=await all('txs');
-  const txs=rows.filter(r=>r.academicYear===year);
+  // year='all' => todos os registros; caso contrario filtra pelo ano
+  const txs=year==='all'?rows:rows.filter(r=>r.academicYear===year);
   const paid=txs.filter(r=>r.type==='PAID').reduce((a,r)=>a+r.amount,0);
   const recv=txs.filter(r=>r.type==='RECEIVED').reduce((a,r)=>a+r.amount,0);
   const late=txs.filter(r=>r.isLate).length;
@@ -1024,32 +1035,34 @@ async function calcSummary(year){
 async function renderDash(){
   const d=await calcSummary(S.year);
   const pct=d.paid>0?(d.recv/d.paid*100).toFixed(1):0;
+  const yrLabel=S.year==='all'?'Todos os anos':S.year;
   $('kpi-row').innerHTML=`
     <div class="kpi blue">
-      <div class="kpi-label">Pago ${S.year}</div>
+      <div class="kpi-label">Pago — ${yrLabel}</div>
       <div class="kpi-value">R$&thinsp;${brlK(d.paid)}</div>
       <div class="kpi-sub">${brl(d.paid)}</div>
     </div>
     <div class="kpi green">
-      <div class="kpi-label">Pensão ${S.year}</div>
+      <div class="kpi-label">Pensão — ${yrLabel}</div>
       <div class="kpi-value">R$&thinsp;${brlK(d.recv)}</div>
       <div class="kpi-sub">${pct}% coberto · ${d.late} atr.</div>
     </div>
     <div class="kpi red">
-      <div class="kpi-label">Déficit ${S.year}</div>
+      <div class="kpi-label">Déficit — ${yrLabel}</div>
       <div class="kpi-value">–R$&thinsp;${brlK(d.deficit)}</div>
       <div class="kpi-sub">descoberto</div>
     </div>
     <div class="kpi ora">
       <div class="kpi-label">Maior custo</div>
       <div class="kpi-value" style="font-size:16px">${(()=>{const top=Object.entries(d.byCat).filter(([k])=>k!=='pensao').sort((a,b)=>b[1]-a[1])[0];return top?catInfo(top[0]).label:'—'})()}</div>
-      <div class="kpi-sub">${S.year}</div>
+      <div class="kpi-sub">${yrLabel}</div>
     </div>`;
   requestAnimationFrame(()=>requestAnimationFrame(()=>drawCharts(d)));
   const rows=await all('txs');
-  const recent=rows.filter(r=>r.academicYear===S.year).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,5);
+  const recent=(S.year==='all'?rows:rows.filter(r=>r.academicYear===S.year))
+    .sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,5);
   $('recent-card').innerHTML=recent.length?recent.map(txHTML).join('')
-    :`<div class="empty"><div style="font-size:38px">📭</div><div style="margin-top:6px">Sem transações em ${S.year}</div></div>`;
+    :`<div class="empty"><div style="font-size:38px">📭</div><div style="margin-top:6px">Sem transações</div></div>`;
 }
 
 // ══════════════════════════════════════════
@@ -1062,7 +1075,7 @@ function drawCharts(d){
   const p1=d.paid>0?(d.recv/d.paid*100).toFixed(1):0;
   $('chart-area').innerHTML=`
     <div class="card" style="margin:0 20px 12px;padding:16px">
-      <div class="chart-title">Visão Geral — ${S.year}</div>
+      <div class="chart-title">Visão Geral — ${S.year==='all'?'Todos os anos':S.year}</div>
       <div style="display:flex;gap:10px">
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px">
           <canvas id="cv1" style="width:110px;height:110px"></canvas>
@@ -1160,7 +1173,8 @@ function txHTML(r){
 
 async function renderTxList(){
   const type=$('fil-type').value, cat=$('fil-cat').value;
-  let rows=(await all('txs')).filter(r=>r.academicYear===S.year);
+  const allRows=await all('txs');
+  let rows=S.year==='all'?allRows:allRows.filter(r=>r.academicYear===S.year);
   if(type) rows=rows.filter(r=>r.type===type);
   if(cat)  rows=rows.filter(r=>r.categoryKey===cat);
   rows.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
