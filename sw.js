@@ -1,6 +1,6 @@
 // sw.js — Service Worker para funcionamento offline
 
-const CACHE = 'school-ledger-v1';
+const CACHE = 'school-ledger-v2';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
