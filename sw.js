@@ -1,22 +1,12 @@
-// sw.js — Service Worker para funcionamento offline (v2 com módulos)
+// sw.js — Service Worker para funcionamento offline
 
-const CACHE = 'school-ledger-v2';
-const ASSETS = [
-  './index.html',
-  './manifest.json',
-  './app/main.js',
-  './app/db.js',
-  './app/state.js',
-  './app/utils.js',
-  './app/seed.js',
-  './app/settings.js',
-  './app/reporting.js',
-  './app/aiService.js',
-  './app/charts.js'
-];
+const CACHE = 'school-ledger-v1';
+const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(ASSETS))
+  );
   self.skipWaiting();
 });
 

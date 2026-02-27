@@ -211,8 +211,6 @@ body {
 .kpi.green  .kpi-value { color: var(--green); }
 .kpi.red    .kpi-value { color: var(--red); }
 .kpi.ora    .kpi-value { color: var(--orange); }
-.kpi.purple .kpi-value { color: var(--purple); }
-
 
 /* ── SECTION HEADER ── */
 .s-hdr {
@@ -635,9 +633,12 @@ body {
 
       <!-- AI: API KEY + FILE -->
       <div class="form-section">
-        <div class="form-label">✦ Preencher com IA (gratuita/offline)</div>
+        <div class="form-label">✦ Preencher com IA</div>
         <div class="form-card" style="padding:14px 16px">
-<div class="api-key-row">
+
+          <div style="margin-bottom:12px">
+            <div style="font-size:12px;font-weight:600;color:var(--t-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Chave Anthropic API</div>
+            <div class="api-key-row">
               <input class="api-key-input" id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-api03-…">
               <button class="pill-btn gray" onclick="toggleKeyVis()" style="padding:10px 14px;font-size:13px">👁</button>
             </div>
@@ -666,7 +667,7 @@ body {
 
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button id="ai-run-btn" class="pill-btn blue" disabled onclick="runAI()">
-              <span id="ai-run-ic">✦</span>&nbsp;<span id="ai-run-txt">Interpretar com IA (offline)</span>
+              <span id="ai-run-ic">✦</span>&nbsp;<span id="ai-run-txt">Interpretar com IA</span>
             </button>
             <span id="ai-status" style="font-size:12px;color:var(--t-muted)"></span>
           </div>
@@ -705,7 +706,13 @@ body {
           </div>
           <div class="field">
             <span class="field-label">Parte</span>
-            <select id="f-party"></select>
+            <select id="f-party">
+              <option value="Me">Eu</option>
+              <option value="Father">Pai</option>
+              <option value="School">Escola</option>
+              <option value="Store">Loja</option>
+              <option value="Other">Outro</option>
+            </select>
           </div>
         </div>
       </div>
@@ -742,13 +749,7 @@ body {
             <span class="tog-label">Recebido após dia 5 &nbsp;■</span>
             <div class="toggle" id="tog"></div>
           </div>
-          
-          <div class="tog-field" onclick="document.getElementById('tog-forecast').classList.toggle('on')">
-            <span class="tog-label">É previsão (futuro)</span>
-            <div class="toggle" id="tog-forecast"></div>
-          </div>
           <div class="field tall">
-
             <span class="field-label">Notas</span>
             <textarea id="f-notes" rows="2" placeholder="Observações…"></textarea>
           </div>
@@ -774,7 +775,6 @@ body {
       <div id="rpt-actions-bar" style="display:flex;gap:8px;padding:12px 20px 4px;flex-wrap:wrap">
         <button class="pill-btn blue" onclick="printReport()">🖨️&nbsp; Imprimir / Salvar PDF</button>
         <button class="pill-btn gray" onclick="exportCSV()">📥&nbsp; Exportar CSV</button>
-        <button class="pill-btn gray" onclick="exportExcel()">📗&nbsp; Exportar Excel</button>
       </div>
 
       <div id="rpt-content">
@@ -817,16 +817,7 @@ body {
         </div>
       </div>
 
-      
       <div class="form-section">
-        <div class="form-label">Partes</div>
-        <div class="form-card" id="party-list-wrap"></div>
-        <div style="margin-top:8px">
-          <button class="btn secondary" style="border-radius:var(--r2)" onclick="document.getElementById('party-sheet').classList.add('open')">+ Nova Parte</button>
-        </div>
-      </div>
-
-<div class="form-section">
         <div class="form-label">Dados</div>
         <div class="form-card">
           <div class="list-row">
@@ -923,27 +914,730 @@ body {
   </div>
 </div>
 
-
-<!-- NEW PARTY SHEET -->
-<div class="sheet-bg" id="party-sheet">
-  <div class="sheet">
-    <div class="sheet-grip"></div>
-    <div class="sheet-hdr">
-      <div class="sheet-title">Nova Parte</div>
-      <button class="sheet-close" onclick="document.getElementById('party-sheet').classList.remove('open')">Cancelar</button>
-    </div>
-    <div style="padding:16px">
-      <div class="form-card">
-        <div class="field"><span class="field-label">Chave</span><input id="np-key" placeholder="ex: avo"></div>
-        <div class="field"><span class="field-label">Nome</span><input id="np-label" placeholder="ex: Avó"></div>
-      </div>
-      <div style="margin-top:12px"><button class="btn primary" onclick="saveParty()">Criar Parte</button></div>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
-<script type="module" src="./app/main.js"></script>
+<script>
+'use strict';
 
+// ══════════════════════════════════════════
+// IndexedDB
+// ══════════════════════════════════════════
+const DB='school-ledger'; let db;
+function openDB(){
+  return new Promise((ok,fail)=>{
+    const r=indexedDB.open(DB,2);
+    r.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('txs')) d.createObjectStore('txs',{keyPath:'id',autoIncrement:true});
+      if(!d.objectStoreNames.contains('cats')) d.createObjectStore('cats',{keyPath:'key'});
+      if(!d.objectStoreNames.contains('cfg')) d.createObjectStore('cfg',{keyPath:'k'});
+    };
+    r.onsuccess=e=>{db=e.target.result;ok()};
+    r.onerror=e=>fail(e.target.error);
+  });
+}
+const all=s=>new Promise((ok,fail)=>{const r=db.transaction(s,'readonly').objectStore(s).getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)});
+const getOne=(s,k)=>new Promise((ok,fail)=>{const r=db.transaction(s,'readonly').objectStore(s).get(k);r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)});
+const put=(s,v)=>new Promise((ok,fail)=>{const r=db.transaction(s,'readwrite').objectStore(s).put(v);r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)});
+const del=(s,k)=>new Promise((ok,fail)=>{const r=db.transaction(s,'readwrite').objectStore(s).delete(k);r.onsuccess=()=>ok();r.onerror=()=>fail(r.error)});
+const clr=s=>new Promise((ok,fail)=>{const r=db.transaction(s,'readwrite').objectStore(s).clear();r.onsuccess=()=>ok();r.onerror=()=>fail(r.error)});
+
+// ══════════════════════════════════════════
+// App State
+// ══════════════════════════════════════════
+const S={year:new Date().getFullYear(), tab:'dash', cats:[], editId:null};
+const MO=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MF=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const CAT_ORDER=['mensalidade','matricula','material','uniforme','extra','pensao'];
+
+// ══════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════
+const brl=v=>Math.abs(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const brlK=v=>v>=1000?(v/1000).toFixed(1)+'k':Math.round(v||0).toString();
+const fmtD=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`};
+function toast(msg,ms=2800){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),ms)}
+function catInfo(k){return S.cats.find(c=>c.key===k)||{key:k,label:k,color:'#8E8E93'}}
+function catEmoji(k){return{mensalidade:'🏫',matricula:'📝',material:'📚',uniforme:'👕',extra:'🎭',pensao:'💰'}[k]||'📌'}
+function el(id){return document.getElementById(id)}
+const $ = el;
+
+// ══════════════════════════════════════════
+// Navigation
+// ══════════════════════════════════════════
+function nav(tab){
+  S.tab=tab;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  $('page-'+tab).classList.add('on');
+  $('t-'+tab).classList.add('on');
+  $('scroller').scrollTop=0;
+  // Year badge visibility
+  $('nav-yr').style.display=(tab==='rpt'||tab==='cfg')?'none':'flex';
+  // Update nav title
+  $('nav-title').textContent={dash:'School Ledger',txs:'Transações',add:S.editId?'Editar':'Nova Transação',rpt:'Relatório',cfg:'Configurações'}[tab]||'';
+  if(tab==='dash') renderDash();
+  if(tab==='txs')  renderTxList();
+  if(tab==='add'&&!S.editId) resetForm();
+  if(tab==='rpt')  renderReport();
+  if(tab==='cfg')  renderCfg();
+}
+
+// ══════════════════════════════════════════
+// Year filter
+// ══════════════════════════════════════════
+async function initYearFilter(){
+  const rows=await all('txs');
+  let years=[...new Set(rows.map(r=>r.academicYear))].filter(Boolean).sort();
+  const now=new Date().getFullYear();
+  if(!years.includes(now)) years.push(now);
+  years.sort();
+
+  // Selector principal — Todos + anos da base
+  const sel=$('yr-sel');
+  sel.innerHTML=
+    `<option value="all">Todos os anos</option>`+
+    years.map(y=>`<option value="${y}">${y===now?y+' (atual)':y}</option>`).join('');
+  // Padrao = ano atual
+  S.year=now;
+  sel.value=String(now);
+  sel.onchange=e=>{
+    S.year=e.target.value==='all'?'all':+e.target.value;
+    if(S.tab==='dash') renderDash();
+    if(S.tab==='txs')  renderTxList();
+    if(S.tab==='rpt')  renderReport();
+  };
+
+  // Selector do formulario — apenas anos concretos
+  const fy=$('f-year');
+  fy.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  fy.value=now;
+}
+
+// ══════════════════════════════════════════
+// Summary calc
+// ══════════════════════════════════════════
+async function calcSummary(year){
+  const rows=await all('txs');
+  // year='all' => todos os registros; caso contrario filtra pelo ano
+  const txs=year==='all'?rows:rows.filter(r=>r.academicYear===year);
+  const paid=txs.filter(r=>r.type==='PAID').reduce((a,r)=>a+r.amount,0);
+  const recv=txs.filter(r=>r.type==='RECEIVED').reduce((a,r)=>a+r.amount,0);
+  const late=txs.filter(r=>r.isLate).length;
+  const byCat={};txs.forEach(r=>{byCat[r.categoryKey]=(byCat[r.categoryKey]||0)+r.amount});
+  const byMonth=Array.from({length:12},()=>({}));
+  txs.forEach(r=>{const m=r.academicMonth-1;byMonth[m][r.categoryKey]=(byMonth[m][r.categoryKey]||0)+r.amount});
+  return{paid,recv,deficit:paid-recv,late,byCat,byMonth};
+}
+
+// ══════════════════════════════════════════
+// Dashboard
+// ══════════════════════════════════════════
+async function renderDash(){
+  const d=await calcSummary(S.year);
+  const pct=d.paid>0?(d.recv/d.paid*100).toFixed(1):0;
+  const yrLabel=S.year==='all'?'Todos os anos':S.year;
+  $('kpi-row').innerHTML=`
+    <div class="kpi blue">
+      <div class="kpi-label">Pago — ${yrLabel}</div>
+      <div class="kpi-value">R$&thinsp;${brlK(d.paid)}</div>
+      <div class="kpi-sub">${brl(d.paid)}</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">Pensão — ${yrLabel}</div>
+      <div class="kpi-value">R$&thinsp;${brlK(d.recv)}</div>
+      <div class="kpi-sub">${pct}% coberto · ${d.late} atr.</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Déficit — ${yrLabel}</div>
+      <div class="kpi-value">–R$&thinsp;${brlK(d.deficit)}</div>
+      <div class="kpi-sub">descoberto</div>
+    </div>
+    <div class="kpi ora">
+      <div class="kpi-label">Maior custo</div>
+      <div class="kpi-value" style="font-size:16px">${(()=>{const top=Object.entries(d.byCat).filter(([k])=>k!=='pensao').sort((a,b)=>b[1]-a[1])[0];return top?catInfo(top[0]).label:'—'})()}</div>
+      <div class="kpi-sub">${yrLabel}</div>
+    </div>`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>drawCharts(d)));
+  const rows=await all('txs');
+  const recent=(S.year==='all'?rows:rows.filter(r=>r.academicYear===S.year))
+    .sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,5);
+  $('recent-card').innerHTML=recent.length?recent.map(txHTML).join('')
+    :`<div class="empty"><div style="font-size:38px">📭</div><div style="margin-top:6px">Sem transações</div></div>`;
+}
+
+// ══════════════════════════════════════════
+// Charts
+// ══════════════════════════════════════════
+function drawCharts(d){
+  const bc=d.byCat||{}, gt=Object.values(bc).reduce((a,v)=>a+v,0);
+  const def=d.paid-d.recv;
+  const p0=d.paid>0?(def/d.paid*100).toFixed(1):0;
+  const p1=d.paid>0?(d.recv/d.paid*100).toFixed(1):0;
+  $('chart-area').innerHTML=`
+    <div class="card" style="margin:0 20px 12px;padding:16px">
+      <div class="chart-title">Visão Geral — ${S.year==='all'?'Todos os anos':S.year}</div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px">
+          <canvas id="cv1" style="width:110px;height:110px"></canvas>
+          <div class="donut-name">Financiamento</div>
+          <div style="width:100%;display:flex;flex-direction:column;gap:4px">
+            <div class="leg-item"><div class="leg-swatch" style="background:#3B5BDB"></div>Eu<span class="leg-pct">${p0}%</span></div>
+            <div class="leg-item"><div class="leg-swatch" style="background:#C0392B"></div>Pai<span class="leg-pct">${p1}%</span></div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px">
+          <canvas id="cv2" style="width:110px;height:110px"></canvas>
+          <div class="donut-name">Categorias</div>
+          <div id="pie2-leg" style="width:100%;display:flex;flex-direction:column;gap:4px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin:0 20px 12px;padding:16px">
+      <div class="chart-title">Despesas por Mês</div>
+      <canvas id="cv3" style="width:100%;display:block"></canvas>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+        ${CAT_ORDER.map(k=>`<div class="leg-item"><div class="leg-swatch" style="background:${catInfo(k).color}"></div><span>${catInfo(k).label}</span></div>`).join('')}
+      </div>
+    </div>`;
+  donut('cv1',[{v:def,c:'#3B5BDB'},{v:d.recv,c:'#C0392B'}],'Total',brlK(d.paid),110);
+  donut('cv2',CAT_ORDER.map(k=>({v:bc[k]||0,c:catInfo(k).color})),'Total',brlK(gt),110);
+  $('pie2-leg').innerHTML=CAT_ORDER.map(k=>{
+    const v=bc[k]||0; if(!v)return'';
+    const p=gt>0?(v/gt*100).toFixed(0):0;
+    return`<div class="leg-item"><div class="leg-swatch" style="background:${catInfo(k).color}"></div>${catInfo(k).label}<span class="leg-pct">${p}%</span></div>`;
+  }).join('');
+  bar('cv3',d);
+}
+
+function donut(id,slices,lbl,val,SZ){
+  const c=$(id); if(!c)return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  c.width=SZ*dpr; c.height=SZ*dpr; c.style.width=SZ+'px'; c.style.height=SZ+'px';
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
+  const cx=SZ/2, cy=SZ/2, R=SZ/2-7, r=SZ/2-23;
+  const tot=slices.reduce((a,s)=>a+(s.v||0),0); if(!tot)return;
+  let a=-Math.PI/2;
+  slices.forEach(s=>{if(!s.v)return;const sw=s.v/tot*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,a,a+sw);ctx.closePath();ctx.fillStyle=s.c;ctx.fill();a+=sw});
+  a=-Math.PI/2;
+  slices.forEach(s=>{if(!s.v)return;const sw=s.v/tot*Math.PI*2;ctx.beginPath();ctx.arc(cx,cy,R,a,a+sw,false);ctx.strokeStyle='#FAFAF9';ctx.lineWidth=2.5;ctx.stroke();a+=sw});
+  ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);ctx.fillStyle='#FFFFFF';ctx.fill();
+  ctx.textAlign='center';
+  ctx.fillStyle='#71717A';ctx.font=`500 8px Inter,sans-serif`;ctx.fillText(lbl,cx,cy-5);
+  ctx.fillStyle='#000';ctx.font=`600 11px 'SF Mono','Menlo','Consolas',monospace`;ctx.fillText(val,cx,cy+7);
+}
+
+function bar(id,d){
+  const c=$(id); if(!c)return;
+  const par=c.parentElement;
+  const W=Math.max((par?par.getBoundingClientRect().width||par.offsetWidth:320)-32,200);
+  const H=100, dpr=Math.min(window.devicePixelRatio||1,2);
+  c.width=W*dpr; c.height=H*dpr; c.style.width=W+'px'; c.style.height=H+'px';
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
+  const data=(d.byMonth||[]).map(m=>CAT_ORDER.map(k=>m[k]||0));
+  const cols=CAT_ORDER.map(k=>catInfo(k).color);
+  const pL=30,pB=16,pT=6,pR=2,cW=W-pL-pR,cH=H-pT-pB;
+  const maxV=Math.max(...data.map(r=>r.reduce((a,b)=>a+b,0)),1);
+  const scale=Math.ceil(maxV/2000)*2000||2000;
+  for(let i=0;i<=3;i++){
+    const y=pT+cH*(1-i/3);
+    ctx.strokeStyle='rgba(0,0,0,.05)';ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(pL+cW,y);ctx.stroke();
+    ctx.fillStyle='#A1A1AA';ctx.textAlign='right';ctx.font=`7.5px 'SF Mono','Menlo','Consolas',monospace`;ctx.fillText(brlK(scale/3*i),pL-3,y+3);
+  }
+  const mW=cW/12, bW=mW*.72, bOff=(mW-bW)/2;
+  data.forEach((cats,mi)=>{
+    const gx=pL+mi*mW+bOff; let yBase=pT+cH;
+    cats.forEach((v,ci)=>{if(!v)return; const bH=Math.max(1,(v/scale)*cH);yBase-=bH;ctx.fillStyle=cols[ci];ctx.fillRect(gx,yBase,bW,bH)});
+    ctx.fillStyle='#A1A1AA';ctx.textAlign='center';ctx.font=`7px Inter,sans-serif`;ctx.fillText(MO[mi],pL+mi*mW+mW/2,H-2);
+  });
+}
+
+// ══════════════════════════════════════════
+// Transactions list
+// ══════════════════════════════════════════
+function txHTML(r){
+  const ci=catInfo(r.categoryKey);
+  const out=r.type==='PAID';
+  return`<div class="list-row" onclick="openTxSheet(${r.id})">
+    <div class="list-icon" style="background:${ci.color}1A">${catEmoji(r.categoryKey)}</div>
+    <div class="list-body">
+      <div class="list-name">${ci.label}</div>
+      <div class="tx-sub">${fmtD(r.date)} · ${MO[r.academicMonth-1]}/${r.academicYear} · ${r.party==='Father'?'Pai':'Eu'}</div>
+      ${r.notes?`<div class="tx-sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${r.notes}</div>`:''}
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div class="tx-amount ${out?'out':'in'}">${out?'–':'+'}${brlK(r.amount)}</div>
+      ${r.isLate?`<div class="tx-late">■ atraso</div>`:''}
+    </div>
+  </div>`;
+}
+
+async function renderTxList(){
+  const type=$('fil-type').value, cat=$('fil-cat').value;
+  const allRows=await all('txs');
+  let rows=S.year==='all'?allRows:allRows.filter(r=>r.academicYear===S.year);
+  if(type) rows=rows.filter(r=>r.type===type);
+  if(cat)  rows=rows.filter(r=>r.categoryKey===cat);
+  rows.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const w=$('tx-wrap');
+  if(!rows.length){w.innerHTML=`<div class="empty"><div style="font-size:38px">📭</div><div style="margin-top:6px">Nenhuma transação</div></div>`;return}
+  w.innerHTML=`<div class="card" style="margin:0 20px 16px;overflow:hidden">${rows.map(txHTML).join('')}</div>`;
+}
+
+async function openTxSheet(id){
+  const rows=await all('txs'); const r=rows.find(r=>r.id===id); if(!r)return;
+  const ci=catInfo(r.categoryKey); const out=r.type==='PAID';
+  $('sh-title').textContent=ci.label;
+  const shRow=(l,v)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:0.5px solid var(--sep-light)"><span style="font-size:15px;color:var(--t-body)">${l}</span><span style="font-size:15px;font-weight:500">${v}</span></div>`;
+  $('sh-body').innerHTML=`
+    <div style="text-align:center;padding:20px 0 14px">
+      <div style="font-size:44px;margin-bottom:8px">${catEmoji(r.categoryKey)}</div>
+      <div style="font:600 30px/1 var(--f-mono);color:${out?'var(--red)':'var(--green)'}">${out?'–':'+'}R$&nbsp;${brl(r.amount)}</div>
+      <div style="font-size:13px;color:var(--t-body);margin-top:6px">${ci.label}</div>
+    </div>
+    <div style="margin:0 20px;background:var(--bg-2);border-radius:12px;overflow:hidden">
+      ${shRow('Data',fmtD(r.date))}
+      ${shRow('Período',MF[r.academicMonth-1]+' / '+r.academicYear)}
+      ${shRow('Tipo',out?'Pago (saída)':'Recebido')}
+      ${shRow('Parte',r.party==='Father'?'Pai':'Eu')}
+      ${shRow('Atraso',r.isLate?'■ Sim':'✓ No prazo')}
+      ${r.notes?shRow('Notas',r.notes):''}
+      ${r.tags?shRow('Tags',r.tags):''}
+    </div>
+    <div style="padding:16px 16px 0;display:flex;flex-direction:column;gap:10px">
+      <button class="btn primary" onclick="editTx(${r.id});$('tx-sheet').classList.remove('open')">✏️  Editar</button>
+      <button class="btn destructive" onclick="if(confirm('Excluir?'))delTxById(${r.id})">🗑  Excluir</button>
+    </div>`;
+  $('tx-sheet').classList.add('open');
+}
+
+async function delTxById(id){
+  await del('txs',id);
+  $('tx-sheet').classList.remove('open');
+  toast('🗑 Excluído');
+  await initYearFilter();
+  if(S.tab==='dash') renderDash();
+  if(S.tab==='txs')  renderTxList();
+}
+
+// ══════════════════════════════════════════
+// Add / Edit form
+// ══════════════════════════════════════════
+function resetForm(){
+  S.editId=null;
+  $('f-id').value=''; $('f-val').value=''; $('f-notes').value=''; $('f-tags').value='';
+  $('f-type').value='PAID'; $('f-party').value='Me';
+  $('f-date').value=new Date().toISOString().split('T')[0];
+  $('f-year').value=S.year; $('f-month').value=new Date().getMonth()+1;
+  if(S.cats.length) $('f-cat').value=S.cats[0].key;
+  $('tog').classList.remove('on');
+  $('del-btn').style.display='none';
+  $('add-title').textContent='Nova Transação';
+  resetAI();
+}
+
+function editTx(id){
+  S.editId=id; nav('add');
+  all('txs').then(rows=>{
+    const r=rows.find(r=>r.id===id); if(!r)return;
+    $('f-id').value=r.id; $('f-val').value=r.amount; $('f-type').value=r.type;
+    $('f-cat').value=r.categoryKey; $('f-party').value=r.party;
+    $('f-date').value=r.date; $('f-year').value=r.academicYear;
+    $('f-month').value=r.academicMonth; $('f-notes').value=r.notes||'';
+    $('f-tags').value=r.tags||'';
+    if(r.isLate) $('tog').classList.add('on');
+    $('del-btn').style.display='flex';
+    $('add-title').textContent='Editar Transação';
+  });
+}
+
+async function saveTx(){
+  const amount=parseFloat($('f-val').value);
+  if(!amount||isNaN(amount)){toast('⚠️ Informe o valor');return}
+  const date=$('f-date').value; if(!date){toast('⚠️ Informe a data');return}
+  const tx={amount,type:$('f-type').value,categoryKey:$('f-cat').value,party:$('f-party').value,
+    date,academicYear:+$('f-year').value,academicMonth:+$('f-month').value,
+    isLate:$('tog').classList.contains('on'),notes:$('f-notes').value,tags:$('f-tags').value,
+    updatedAt:new Date().toISOString()};
+  if(S.editId) tx.id=S.editId; else tx.createdAt=new Date().toISOString();
+  await put('txs',tx);
+  toast(S.editId?'✅ Atualizado!':'✅ Salvo!');
+  S.editId=null; await initYearFilter(); nav('txs');
+}
+
+async function deleteTx(){
+  if(!S.editId) return;
+  if(!confirm('Excluir esta transação?')) return;
+  await del('txs',S.editId); toast('🗑 Excluído');
+  S.editId=null; await initYearFilter(); nav('txs');
+}
+
+// ══════════════════════════════════════════
+// Reports
+// ══════════════════════════════════════════
+async function renderReport(){
+  const rows=await all('txs');
+  const years=[...new Set(rows.map(r=>r.academicYear))].filter(Boolean).sort();
+  if(!years.length){$('rpt-content').innerHTML=`<div class="empty"><div style="font-size:38px">📋</div><div style="margin-top:6px">Sem dados</div></div>`;return}
+  let html='', gP=0, gR=0;
+  for(const yr of years){
+    const txs=rows.filter(r=>r.academicYear===yr);
+    const byMonth={}, pensaoByMonth={}, lateByMonth={};
+    txs.filter(r=>r.type==='PAID').forEach(r=>{
+      const m=r.academicMonth;
+      if(!byMonth[m]) byMonth[m]={mensalidade:0,matricula:0,material:0,uniforme:0,extra:0};
+      if(byMonth[m][r.categoryKey]!==undefined) byMonth[m][r.categoryKey]+=r.amount;
+    });
+    txs.filter(r=>r.categoryKey==='pensao').forEach(r=>{pensaoByMonth[r.academicMonth]=(pensaoByMonth[r.academicMonth]||0)+r.amount});
+    txs.filter(r=>r.isLate&&r.categoryKey==='pensao').forEach(r=>{lateByMonth[r.academicMonth]=true});
+    let rows_html='', tot={mensalidade:0,matricula:0,material:0,extra:0,sub:0,recv:0,diff:0};
+    for(let m=1;m<=12;m++){
+      const cats=byMonth[m]||{}, recv=pensaoByMonth[m]||0, late=lateByMonth[m];
+      const sub=(cats.mensalidade||0)+(cats.matricula||0)+(cats.material||0)+(cats.uniforme||0)+(cats.extra||0);
+      const diff=sub-recv, pct=sub>0?(recv/sub*100):0;
+      if(sub===0&&recv===0) continue;
+      const pc=pct===0?'':pct<50?'neg':'pct-ok';
+      tot.mensalidade+=(cats.mensalidade||0); tot.matricula+=(cats.matricula||0);
+      tot.material+=(cats.material||0); tot.extra+=(cats.extra||0);
+      tot.sub+=sub; tot.recv+=recv; tot.diff+=diff;
+      rows_html+=`<tr>
+        <td>${MF[m-1]}</td>
+        <td class="r">${brl(cats.mensalidade||0)}</td>
+        <td class="r">${cats.matricula?brl(cats.matricula):'—'}</td>
+        <td class="r">${cats.material?brl(cats.material):'—'}</td>
+        <td class="r">${cats.extra?brl(cats.extra):'—'}</td>
+        <td class="r recv">${recv?brl(recv):'—'}</td>
+        <td class="r ${diff>0?'neg':'recv'}">${diff>0?'–':'+'}${brl(Math.abs(diff))||'—'}</td>
+        <td class="r ${pc}">${sub>0?pct.toFixed(1)+'%':'—'}${late?` <span class="late-sym">■</span>`:''}</td>
+      </tr>`;
+    }
+    gP+=tot.sub; gR+=tot.recv;
+    const tPct=tot.sub>0?(tot.recv/tot.sub*100).toFixed(1)+'%':'—';
+    html+=`<div class="rpt-card">
+      <div class="rpt-year-hdr"><h3>${yr}</h3><span>R$&nbsp;${brl(tot.sub)}</span></div>
+      <div class="rpt-scroll"><table class="rtbl">
+        <thead><tr><th>Mês</th><th>Mensalidade</th><th>Matrícula</th><th>Material</th><th>Extra</th><th>Pensão</th><th>Diferença</th><th>% Pai</th></tr></thead>
+        <tbody>${rows_html}
+          <tr class="total-row">
+            <td>TOTAL ${yr}</td>
+            <td class="r">${brl(tot.mensalidade)}</td>
+            <td class="r">${tot.matricula?brl(tot.matricula):'—'}</td>
+            <td class="r">${tot.material?brl(tot.material):'—'}</td>
+            <td class="r">${tot.extra?brl(tot.extra):'—'}</td>
+            <td class="r recv">${brl(tot.recv)}</td>
+            <td class="r neg">–${brl(tot.diff)}</td>
+            <td class="r ${tot.recv/tot.sub<.5?'neg':tot.recv/tot.sub<.7?'':'pct-ok'}">${tPct}</td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>`;
+  }
+  const gD=gP-gR, gPct=gP>0?(gR/gP*100).toFixed(1):0;
+  $('rpt-content').innerHTML=`
+    <div class="gt-row">
+      <div class="gt-cell"><div class="gt-label">Total Pago</div><div class="gt-value">${brl(gP)}</div></div>
+      <div class="gt-cell"><div class="gt-label">Pensão</div><div class="gt-value warn">${brl(gR)}</div></div>
+      <div class="gt-cell"><div class="gt-label">Déficit</div><div class="gt-value danger">–${brl(gD)}</div></div>
+      <div class="gt-cell"><div class="gt-label">Cobertura Pai</div><div class="gt-value warn">${gPct}%</div></div>
+    </div>${html}`;
+}
+
+function printReport(){
+  if(!$('rpt-content').querySelector('.rpt-card')){
+    renderReport().then(()=>setTimeout(()=>window.print(),400));
+  } else { window.print(); }
+}
+
+async function exportCSV(){
+  const rows=await all('txs');
+  const txs=rows.filter(r=>r.academicYear===S.year).sort((a,b)=>b.date.localeCompare(a.date));
+  const hdr='Data,Ano,Mes,Tipo,Categoria,Parte,Valor,Atraso,Notas,Tags';
+  const lines=txs.map(r=>[r.date,r.academicYear,r.academicMonth,r.type,r.categoryKey,r.party,r.amount,r.isLate?'Sim':'Nao',`"${(r.notes||'').replace(/"/g,'""')}"`,r.tags||''].join(','));
+  const blob=new Blob(['\uFEFF'+[hdr,...lines].join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url; a.download=`ledger-${S.year}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('📥 CSV exportado!');
+}
+
+// ══════════════════════════════════════════
+// Settings
+// ══════════════════════════════════════════
+async function renderCfg(){
+  const cats=await all('cats'), rows=await all('txs');
+  S.cats=cats;
+  const years=[...new Set(rows.map(r=>r.academicYear))].sort();
+  $('cat-list-wrap').innerHTML=cats.length?cats.map(c=>`
+    <div class="list-row">
+      <div class="list-icon" style="background:${c.color}1A">
+        <div style="width:14px;height:14px;border-radius:4px;background:${c.color}"></div>
+      </div>
+      <div class="list-body">
+        <div class="list-name">${c.label}</div>
+        <div class="tx-sub" style="font-family:var(--f-mono)">${c.key}</div>
+      </div>
+      ${!c.system?`<button onclick="delCat('${c.key}')" style="border:none;background:none;color:var(--red);font-size:16px;padding:6px 8px;cursor:pointer">🗑</button>`:'<span style="font-size:11px;color:var(--t-muted);background:var(--bg-2);border-radius:8px;padding:3px 8px">Sistema</span>'}
+    </div>`).join('')
+    :`<div style="padding:14px 16px;font-size:14px;color:var(--t-muted)">Nenhuma categoria</div>`;
+  $('stat-count').textContent=rows.length+' transações';
+  $('stat-years').textContent=years.length?years.join(', '):'—';
+  populateCatSelects();
+}
+
+function populateCatSelects(){
+  ['f-cat','fil-cat'].forEach(id=>{
+    const s=$(id); if(!s)return;
+    const cur=s.value;
+    s.innerHTML=id==='fil-cat'?'<option value="">Todas categorias</option>':'';
+    S.cats.forEach(c=>{const o=document.createElement('option');o.value=c.key;o.textContent=c.label;s.appendChild(o)});
+    if(cur) s.value=cur;
+  });
+}
+
+async function loadCats(){S.cats=await all('cats');populateCatSelects()}
+
+async function saveCat(){
+  const key=$('nc-key').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const label=$('nc-label').value.trim();
+  const color=$('nc-color').value;
+  if(!key||!label){toast('⚠️ Preencha chave e nome');return}
+  await put('cats',{key,label,color,system:false});
+  toast('✅ Categoria criada!');
+  $('cat-sheet').classList.remove('open');
+  $('nc-key').value=''; $('nc-label').value='';
+  await loadCats(); renderCfg();
+}
+
+async function delCat(key){
+  if(!confirm(`Excluir categoria "${key}"?`)) return;
+  await del('cats',key);
+  await loadCats(); renderCfg();
+}
+
+async function clearAll(){await clr('txs');await initYearFilter();renderCfg();toast('🗑 Dados removidos')}
+
+// ══════════════════════════════════════════
+// JSON Export / Import
+// ══════════════════════════════════════════
+async function exportJSON(){
+  const txs=await all('txs'), cats=await all('cats');
+  const payload={meta:{version:'3.0',school:'Colégio Objectivo',exportedAt:new Date().toISOString()},categories:cats,transactions:txs};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=`school-ledger-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('💾 Backup exportado!');
+}
+
+async function importJSON(fileOrEvent){
+  const file = fileOrEvent instanceof File ? fileOrEvent : fileOrEvent?.target?.files?.[0];
+  if(!file){toast('⚠️ Nenhum arquivo selecionado');return}
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const p=JSON.parse(e.target.result);
+      if(!Array.isArray(p.transactions)) throw new Error('"transactions" deve ser um array');
+      if(!confirm(`Importar ${p.transactions.length} transações?\nOs dados atuais serão substituídos.`)) return;
+      await clr('txs');
+      for(const tx of p.transactions) await put('txs',tx);
+      if(Array.isArray(p.categories)) for(const c of p.categories) await put('cats',c);
+      const n=p.transactions.length;
+      $('imp-msg').textContent=`✅ ${n} transações importadas!`;
+      $('imp-msg').style.display='block';
+      await loadCats(); await initYearFilter();
+      toast('✅ '+n+' transações importadas!',3500);
+      renderCfg();
+    }catch(err){
+      $('imp-msg').textContent='❌ Erro: '+err.message;
+      $('imp-msg').style.display='block';
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════
+// AI — Safari compatible
+// Anthropic supports direct browser access via
+// 'anthropic-dangerous-direct-browser-access' header
+// ══════════════════════════════════════════
+let _aiFile=null, _aiB64=null, _aiMime=null;
+
+function resetAI(){
+  _aiFile=null; _aiB64=null; _aiMime=null;
+  $('ai-file').value='';
+  $('ai-idle').style.display='block';
+  $('ai-file-info').style.display='none';
+  const btn=$('ai-run-btn'); btn.disabled=true; btn.style.cssText='';
+  $('ai-run-ic').textContent='✦'; $('ai-run-txt').textContent='Interpretar com IA';
+  $('ai-status').textContent='';
+  $('ai-result').style.display='none';
+  document.querySelectorAll('.ai-hi').forEach(e=>e.classList.remove('ai-hi'));
+}
+
+function onAiFileSelect(e){const f=e.target.files[0];if(f)loadAiFile(f)}
+function onAiDrop(e){e.preventDefault();$('ai-drop').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)loadAiFile(f)}
+function loadAiFile(f){
+  const ok=['application/pdf','image/jpeg','image/jpg','image/png'];
+  if(!ok.includes(f.type)){toast('❌ Use PDF, JPG ou PNG');return}
+  if(f.size>8*1024*1024){toast('❌ Arquivo > 8 MB');return}
+  _aiFile=f; _aiMime=f.type;
+  $('ai-idle').style.display='none';
+  $('ai-file-info').style.display='flex';
+  $('ai-file-ic').textContent={pdf:'📄',jpg:'🖼️',jpeg:'🖼️',png:'🖼️'}[f.name.split('.').pop().toLowerCase()]||'📎';
+  $('ai-file-nm').textContent=f.name;
+  $('ai-file-sz').textContent=(f.size/1024).toFixed(1)+' KB';
+  $('ai-run-btn').disabled=false;
+  const reader=new FileReader(); reader.onload=e=>{_aiB64=e.target.result.split(',')[1]}; reader.readAsDataURL(f);
+}
+function clearAiFile(e){e.stopPropagation();resetAI()}
+
+function toggleKeyVis(){
+  const inp=$('api-key');
+  if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
+}
+
+async function runAI(){
+  const apiKey=($('api-key').value||'').trim();
+  if(!apiKey){toast('⚠️ Informe a chave de API');$('api-key').focus();return}
+  if(!_aiB64){toast('⚠️ Selecione um arquivo');return}
+  // persist key
+  await put('cfg',{k:'apiKey',v:apiKey});
+
+  const btn=$('ai-run-btn'); btn.disabled=true;
+  $('ai-run-ic').innerHTML='<span class="spinner"></span>';
+  $('ai-run-txt').textContent='Analisando…';
+  $('ai-status').textContent='Enviando para a IA…';
+
+  const catKeys=S.cats.map(c=>c.key).join('|');
+  const prompt=`Você é especialista em documentos financeiros brasileiros. Analise este documento da escola Colégio Objectivo (alunas Lara e Chloe). Retorne APENAS JSON válido (sem markdown, sem texto adicional):\n{"amount":<número>,"type":"PAID","categoryKey":"${catKeys}","party":"Me","date":"YYYY-MM-DD","academicYear":<ano>,"academicMonth":<1-12>,"isLate":false,"notes":"<resumo>","tags":"","confidence":"high","summary":"<frase curta em português>"}\nRegras importantes: type="RECEIVED" somente para valores pagos pelo pai. categoryKey="pensao" para recebimento de pensão. Responda SOMENTE com o objeto JSON.`;
+
+  try{
+    const content=[
+      _aiMime==='application/pdf'
+        ?{type:'document',source:{type:'base64',media_type:'application/pdf',data:_aiB64}}
+        :{type:'image',source:{type:'base64',media_type:_aiMime,data:_aiB64}},
+      {type:'text',text:prompt}
+    ];
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,messages:[{role:'user',content}]})
+    });
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      throw new Error(err?.error?.message||'HTTP '+res.status);
+    }
+    const data=await res.json();
+    const raw=(data.content?.find(b=>b.type==='text')?.text||'').trim();
+    const match=raw.match(/\{[\s\S]*\}/); if(!match) throw new Error('Resposta inválida da IA');
+    const parsed=JSON.parse(match[0]);
+    applyAI(parsed);
+  }catch(err){
+    let msg=err.message;
+    if(msg.includes('401')||msg.includes('authentication')) msg='Chave de API inválida';
+    else if(msg.includes('Failed to fetch')||msg.includes('NetworkError')) msg='Sem conexão — verifique o Wi-Fi';
+    toast('❌ '+msg, 4000);
+    btn.disabled=false;
+    $('ai-run-ic').textContent='✦'; $('ai-run-txt').textContent='Tentar novamente';
+    $('ai-status').textContent='';
+  }
+}
+
+function applyAI(d){
+  const btn=$('ai-run-btn'); btn.disabled=false;
+  btn.style.background='var(--green)'; btn.style.color='#fff';
+  $('ai-run-ic').textContent='✓'; $('ai-run-txt').textContent='Preenchido';
+  const cf=d.confidence||'medium';
+  const cfC={high:'var(--green)',medium:'var(--orange)',low:'var(--red)'};
+  $('ai-status').innerHTML=`<span style="color:${cfC[cf]};font-weight:600">● ${{high:'Alta confiança',medium:'Verificar campos',low:'Revisar tudo'}[cf]}</span>`;
+  $('ai-summary').textContent=d.summary||'Documento analisado.';
+  $('ai-result').style.display='flex';
+  const catKey=(d.party==='Father'&&d.type==='RECEIVED')?'pensao':(d.categoryKey||'');
+  const fieldMap=[
+    ['f-val',d.amount?.toString()],['f-type',d.type],['f-cat',catKey],
+    ['f-party',d.party],['f-date',d.date],
+    ['f-year',d.academicYear?.toString()],['f-month',d.academicMonth?.toString()],
+    ['f-notes',d.notes],['f-tags',d.tags]
+  ];
+  fieldMap.forEach(([id,v],i)=>{
+    if(v==null||v==='') return;
+    setTimeout(()=>{
+      const el=$(id); if(!el) return;
+      if(el.tagName==='SELECT'){const opt=[...el.options].find(o=>o.value===String(v));if(opt)el.value=opt.value}
+      else el.value=v;
+      el.classList.add('ai-hi');
+      setTimeout(()=>el.classList.remove('ai-hi'),3000);
+    },i*70);
+  });
+  if(d.isLate) setTimeout(()=>$('tog').classList.add('on'),600);
+}
+
+async function loadSavedApiKey(){
+  try{const s=await getOne('cfg','apiKey');if(s?.v)$('api-key').value=s.v}catch(e){}
+}
+
+// ══════════════════════════════════════════
+// Seed data
+// ══════════════════════════════════════════
+async function seedIfEmpty(){
+  const existing=await all('txs'); if(existing.length>0)return;
+  const CATS=[
+    {key:'mensalidade',label:'Mensalidade',color:'#3B5BDB',system:true},
+    {key:'pensao',     label:'Pensão Alimentícia',color:'#C0392B',system:true},
+    {key:'matricula',  label:'Matrícula', color:'#C05C1A',system:true},
+    {key:'material',   label:'Material',  color:'#1A7F7A',system:true},
+    {key:'uniforme',   label:'Uniforme',  color:'#6B4FBB',system:true},
+    {key:'extra',      label:'Extra',     color:'#2E7D55',system:true},
+  ];
+  for(const c of CATS) await put('cats',c);
+  let id=1;
+  const mk=o=>({id:id++,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...o});
+  // 2025 mensalidades
+  const m25=[4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.40];
+  for(let i=0;i<12;i++) await put('txs',mk({amount:m25[i],type:'PAID',categoryKey:'mensalidade',party:'Me',date:`2025-${String(i+1).padStart(2,'0')}-05`,academicYear:2025,academicMonth:i+1,isLate:false,notes:`Mensalidade ${MF[i]}/2025`,tags:'mensalidade'}));
+  await put('txs',mk({amount:4256.88,type:'PAID',categoryKey:'matricula',party:'Me',date:'2025-01-05',academicYear:2025,academicMonth:1,isLate:false,notes:'Matrícula anual 2025',tags:'matricula'}));
+  for(const[m,d]of[[1,'2025-01-05'],[4,'2025-04-05'],[7,'2025-07-05'],[9,'2025-09-05']])
+    await put('txs',mk({amount:724.50,type:'PAID',categoryKey:'material',party:'Me',date:d,academicYear:2025,academicMonth:m,isLate:false,notes:`Material ${MF[m-1]}/2025`,tags:'material'}));
+  await put('txs',mk({amount:1084.23,type:'PAID',categoryKey:'extra',party:'Me',date:'2025-01-05',academicYear:2025,academicMonth:1,isLate:false,notes:'Extra Jan/2025',tags:'extra'}));
+  const p25=[[1,'2025-01-05',2000,false],[2,'2025-02-05',2000,false],[3,'2025-03-05',2000,false],[4,'2025-04-05',2000,false],[5,'2025-05-06',1000,true],[6,'2025-06-05',2000,false],[7,'2025-07-03',1000,false],[7,'2025-07-17',1000,true],[8,'2025-08-05',2000,false],[9,'2025-09-05',2000,false],[10,'2025-10-04',2000,false],[11,'2025-11-05',2000,false],[11,'2025-11-22',1500,true],[12,'2025-12-05',3500,false]];
+  for(const[m,d,amt,late]of p25) await put('txs',mk({amount:amt,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:d,academicYear:2025,academicMonth:m,isLate:late,notes:`Pensão ${MF[m-1]}/2025`,tags:'pensao'}));
+  // 2026
+  for(const[m,d]of[[1,'2026-01-05'],[2,'2026-02-05']]) await put('txs',mk({amount:5666.85,type:'PAID',categoryKey:'mensalidade',party:'Me',date:d,academicYear:2026,academicMonth:m,isLate:false,notes:`Mensalidade ${MF[m-1]}/2026`,tags:'mensalidade'}));
+  await put('txs',mk({amount:1491.29,type:'PAID',categoryKey:'matricula',party:'Me',date:'2026-01-05',academicYear:2026,academicMonth:1,isLate:false,notes:'Matrícula 2026',tags:'matricula'}));
+  await put('txs',mk({amount:1047.33,type:'PAID',categoryKey:'material',party:'Me',date:'2026-01-05',academicYear:2026,academicMonth:1,isLate:false,notes:'Material Jan/2026',tags:'material'}));
+  await put('txs',mk({amount:1503.41,type:'PAID',categoryKey:'extra',party:'Me',date:'2026-02-05',academicYear:2026,academicMonth:2,isLate:false,notes:'Excursão parcela 1',tags:'extra'}));
+  for(let i=0;i<6;i++){const m=i+3;await put('txs',mk({amount:429,type:'PAID',categoryKey:'extra',party:'Me',date:`2026-${String(m).padStart(2,'0')}-05`,academicYear:2026,academicMonth:m,isLate:false,notes:`Excursão ${MF[m-1]}/2026`,tags:'extra,excursao'}))}
+  await put('txs',mk({amount:2000,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:'2026-01-12',academicYear:2026,academicMonth:1,isLate:true,notes:'Pensão Jan/2026 — atraso',tags:'pensao'}));
+  await put('txs',mk({amount:2500,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:'2026-02-07',academicYear:2026,academicMonth:2,isLate:true,notes:'Pensão Fev/2026 — atraso',tags:'pensao'}));
+}
+
+// ══════════════════════════════════════════
+// Bottom sheet close on bg tap
+// ══════════════════════════════════════════
+document.querySelectorAll('.sheet-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open')}));
+
+// ══════════════════════════════════════════
+// Service Worker
+// ══════════════════════════════════════════
+if('serviceWorker'in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+// ══════════════════════════════════════════
+// Boot
+// ══════════════════════════════════════════
+async function boot(){
+  await openDB();
+  await seedIfEmpty();
+  await loadCats();
+  await initYearFilter();
+  await loadSavedApiKey();
+  renderDash();
+}
+window.addEventListener('load', boot);
+</script>
 </body>
 </html>
