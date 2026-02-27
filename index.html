@@ -234,12 +234,12 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
 .pill-btn.amber{background:var(--amber);color:#fff}
 
 /* ── AI SECTION ── */
-.ai-drop{border:1.5px dashed var(--sep);border-radius:var(--r);background:var(--bg-2);padding:22px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px}
-.ai-drop.drag{border-color:var(--accent);background:var(--accent-l)}
-.ai-drop.filled{border-style:solid;border-color:var(--green);background:var(--green-l)}
-.ai-result{display:none;background:var(--green-l);border:1px solid rgba(46,125,85,.25);border-radius:var(--r);padding:12px 14px;margin-top:12px}
 @keyframes aiFlash{0%{background:rgba(46,125,85,.15)}100%{background:transparent}}
 .ai-hi{animation:aiFlash 2.5s ease forwards}
+
+/* ── DOC UPLOAD ── */
+.doc-drop{border:1.5px dashed var(--sep);border-radius:var(--r);background:var(--bg-2);padding:16px;text-align:center;cursor:pointer;transition:all .2s}
+.doc-drop.drag{border-color:var(--accent);background:var(--accent-l)}
 
 /* ── REPORTS ── */
 .rpt-card{background:var(--card);border-radius:var(--r2);margin:0 20px 14px;overflow:hidden;box-shadow:var(--s1);border:1px solid var(--sep-l)}
@@ -445,39 +445,28 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
 <div class="page" id="page-add">
   <div class="pg-title" id="add-title">Nova Transação</div>
 
-  <!-- AI LOCAL -->
-  <div class="form-section">
-    <div class="form-label">✦ Interpretar com IA Local</div>
+  <!-- DOCUMENTO ANEXADO -->
+  <div class="form-section" style="margin-top:16px">
+    <div class="form-label">📎 Documento</div>
     <div class="form-card" style="padding:14px 16px">
-      <p style="font-size:12px;color:var(--t-3);line-height:1.65;margin-bottom:10px">Lê PDF de relatório de pagamento escolar. Preenche formulário automaticamente.<br>Sem API · Offline · Safari/iOS compatível</p>
-      <div id="ai-drop" class="ai-drop" onclick="document.getElementById('ai-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="onAiDrop(event)">
-        <input type="file" id="ai-file" accept=".pdf,.jpg,.jpeg,.png,.txt" style="display:none" onchange="loadAiFile(event.target.files[0])">
-        <div id="ai-idle"><div style="font-size:30px;margin-bottom:6px">📄</div><div style="font-size:14px;font-weight:500;color:var(--t-2)">Toque para escolher arquivo</div><div style="font-size:12px;color:var(--t-3);margin-top:3px">Boleto · Comprovante · Relatório de Pagamento</div></div>
-        <div id="ai-file-info" style="display:none;align-items:center;gap:12px">
-          <span id="ai-file-ic" style="font-size:28px"></span>
-          <div style="flex:1;text-align:left;min-width:0"><div id="ai-file-nm" style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div><div id="ai-file-sz" style="font-size:12px;color:var(--t-3);margin-top:2px"></div></div>
-          <button onclick="clearAiFile(event)" style="background:var(--fill);border:none;border-radius:100px;padding:6px 12px;font:500 13px/1 var(--f);color:var(--t-2);cursor:pointer;flex-shrink:0">Remover</button>
+      <div id="doc-drop" class="doc-drop" onclick="document.getElementById('doc-file-input').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="onDocDrop(event)">
+        <input type="file" id="doc-file-input" accept=".pdf,.jpg,.jpeg,.png,.txt" style="display:none" onchange="loadDocFile(event.target.files[0])">
+        <div id="doc-idle"><div style="font-size:24px;margin-bottom:4px">📄</div><div style="font-size:13px;font-weight:500;color:var(--t-2)">Toque para anexar arquivo</div><div style="font-size:11px;color:var(--t-3);margin-top:2px">PDF · JPG · PNG · TXT — até 15 MB</div></div>
+        <div id="doc-file-info" style="display:none;align-items:center;gap:10px">
+          <span id="doc-file-ic" style="font-size:24px">📄</span>
+          <div style="flex:1;min-width:0"><div id="doc-file-nm" style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t-1)"></div><div id="doc-file-sz" style="font-size:11px;color:var(--t-3);margin-top:1px"></div></div>
+          <button onclick="clearDocFile(event)" style="background:var(--fill);border:none;border-radius:100px;padding:5px 10px;font:500 12px/1 var(--f);color:var(--t-2);cursor:pointer;flex-shrink:0">Remover</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button id="ai-run-btn" class="pill-btn blue" disabled onclick="runAI()"><span id="ai-run-ic">✦</span>&nbsp;<span id="ai-run-txt">Interpretar com IA</span></button>
-        <span id="ai-status" style="font-size:12px;color:var(--t-3)"></span>
+      <!-- Existing file banner when editing -->
+      <div id="existing-file-banner" style="display:none;margin-top:10px;display:none">
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg-2);border-radius:var(--r);border:1px solid var(--sep-l)">
+          <span id="efb-ic" style="font-size:18px">📎</span>
+          <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--t-2)" id="efb-name">—</div><div style="font-size:10px;color:var(--t-3)" id="efb-meta"></div></div>
+          <button onclick="downloadTxFile(S._existingFileId)" style="border:none;background:var(--accent);color:#fff;border-radius:var(--r);padding:5px 10px;font:500 11px/1 var(--f);cursor:pointer;flex-shrink:0">⬇ Ver</button>
+          <button onclick="removeExistingFile()" style="border:none;background:var(--fill);color:var(--red);border-radius:var(--r);padding:5px 10px;font:500 11px/1 var(--f);cursor:pointer;flex-shrink:0">✕</button>
+        </div>
       </div>
-      <div class="ai-result" id="ai-result">
-        <div style="display:flex;gap:10px"><span style="font-size:20px">✅</span><div><div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:3px">Campos preenchidos</div><div id="ai-summary" style="font-size:12px;color:var(--t-2);line-height:1.5"></div></div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- EXISTING FILE BANNER (shown when editing a tx that already has a document) -->
-  <div id="existing-file-banner" style="display:none;margin:10px 20px 0">
-    <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--accent-l);border:1.5px solid rgba(59,91,219,.2);border-radius:var(--r2)">
-      <span id="efb-ic" style="font-size:22px">📎</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:var(--accent)" id="efb-name">Documento anexado</div>
-        <div style="font-size:11px;color:var(--t-3);margin-top:1px" id="efb-meta"></div>
-      </div>
-      <button onclick="downloadTxFile(S._existingFileId)" style="border:none;background:var(--accent);color:#fff;border-radius:var(--r);padding:6px 12px;font:500 12px/1 var(--f);cursor:pointer;flex-shrink:0">⬇ Ver</button>
     </div>
   </div>
 
@@ -580,6 +569,7 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
   <div id="rpt-actions-bar" style="display:flex;gap:8px;padding:12px 20px 4px;flex-wrap:wrap">
     <button class="pill-btn blue" onclick="printReport()">🖨️&nbsp; Imprimir / PDF</button>
     <button class="pill-btn gray" onclick="exportCSV()">📥&nbsp; CSV</button>
+    <button class="pill-btn gray" id="btn-toggle-fcst" onclick="toggleFcstCols()" title="Mostrar/ocultar colunas de previsão">◆&nbsp; Previsões</button>
   </div>
   <div id="rpt-content"><div class="empty-state"><span class="spinner"></span></div></div>
   <div id="rpt-hint" style="padding:0 20px 20px;font-size:11px;color:var(--t-4);line-height:2">
@@ -815,7 +805,7 @@ const dbDel   = (s,k) => new Promise((res,rej) => { const r=db.transaction(s,'re
 const dbClear = s     => new Promise((res,rej) => { const r=db.transaction(s,'readwrite').objectStore(s).clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
 
 /* ─── STATE ─── */
-const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0} };
+const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, _pendingFileId:null, _existingFileId:null, _removeFile:false };
 const MO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MF = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CAT_PAID  = ['mensalidade','matricula','material','uniforme','extra'];
@@ -886,7 +876,7 @@ function nav(tab){
   $('page-'+tab).classList.add('on');
   const tb=$('t-'+tab); if(tb) tb.classList.add('on');
   const si=$('si-'+tab); if(si) si.classList.add('on');
-  $('scroller').scrollTop=0;
+  if(tab !== 'txs') $('scroller').scrollTop=0;
   const hideYr = tab==='rpt'||tab==='cfg';
   const navYr = document.querySelector('.navbar .yr-badge'); if(navYr) navYr.style.display = hideYr?'none':'flex';
   $('nav-title').textContent = {dash:'School Ledger',txs:'Transações',add:S.editId?'Editar':'Nova Transação',rpt:'Relatório',cfg:'Configurações'}[tab]||'';
@@ -987,7 +977,7 @@ async function renderDash(){
 
   const allRows = await dbAll('txs');
   const recent  = (S.year==='all'?allRows:allRows.filter(r=>r.academicYear===S.year))
-    .sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,5);
+    .sort((a,b)=> b.id - a.id ).slice(0,5);
   $('recent-card').innerHTML = recent.length ? recent.map(txHTML).join('') : '<div class="empty-state"><div class="ic">📭</div>Sem transações</div>';
 }
 
@@ -1069,7 +1059,10 @@ function barChart(id,d){
   const scale=Math.ceil(maxV/2000)*2000||2000;
   for(let i=0;i<=3;i++){ const y=pT+cH*(1-i/3); ctx.strokeStyle='rgba(0,0,0,.05)'; ctx.lineWidth=.6; ctx.beginPath(); ctx.moveTo(pL,y); ctx.lineTo(pL+cW,y); ctx.stroke(); ctx.fillStyle='#A1A1AA'; ctx.textAlign='right'; ctx.font=`7px 'SF Mono','Menlo',monospace`; ctx.fillText((scale/3*i/1000).toFixed(0)+'k',pL-3,y+3); }
   const mW=cW/12,bW=mW*.72,bOff=(mW-bW)/2;
-  data.forEach((cats,mi)=>{ const gx=pL+mi*mW+bOff; let yBase=pT+cH; cats.forEach((v,ci)=>{ if(!v)return; const bH=Math.max(1,(v/scale)*cH); yBase-=bH; ctx.fillStyle=cols[ci]; ctx.fillRect(gx,yBase,bW,bH); }); ctx.fillStyle='#A1A1AA'; ctx.textAlign='center'; ctx.font=`7px Inter,sans-serif`; ctx.fillText(MO[mi],pL+mi*mW+mW/2,H-2); });
+  // Store bar hit areas for tooltip
+  c._bars=[];
+  data.forEach((cats,mi)=>{ const gx=pL+mi*mW+bOff; let yBase=pT+cH; const tot=cats.reduce((a,b)=>a+b,0); cats.forEach((v,ci)=>{ if(!v)return; const bH=Math.max(1,(v/scale)*cH); yBase-=bH; ctx.fillStyle=cols[ci]; ctx.fillRect(gx,yBase,bW,bH); }); ctx.fillStyle='#A1A1AA'; ctx.textAlign='center'; ctx.font=`7px Inter,sans-serif`; ctx.fillText(MO[mi],pL+mi*mW+mW/2,H-2); c._bars.push({x:gx,y:pT,w:bW,h:pT+cH,mi,tot,cats}); });
+  attachBarTooltip(c,'confirmed');
 }
 
 function barForecast(id,fc){
@@ -1084,11 +1077,57 @@ function barForecast(id,fc){
   const scale=Math.ceil(maxV/1000)*1000||1000;
   for(let i=0;i<=2;i++){ const y=pT+cH*(1-i/2); ctx.strokeStyle='rgba(124,58,237,.08)'; ctx.lineWidth=.6; ctx.beginPath(); ctx.moveTo(pL,y); ctx.lineTo(pL+cW,y); ctx.stroke(); ctx.fillStyle='#A1A1AA'; ctx.textAlign='right'; ctx.font=`7px 'SF Mono','Menlo',monospace`; ctx.fillText((scale/2*i/1000).toFixed(0)+'k',pL-3,y+3); }
   const mW=cW/12,bW=mW*.72,bOff=(mW-bW)/2;
+  c._bars=[];
   data.forEach((cats,mi)=>{
-    const gx=pL+mi*mW+bOff; let yBase=pT+cH;
+    const gx=pL+mi*mW+bOff; let yBase=pT+cH; const tot=Object.values(cats).reduce((a,b)=>a+b,0);
     CAT_ORDER.forEach(k=>{ const v=cats[k]||0; if(!v)return; const bH=Math.max(1,(v/scale)*cH); yBase-=bH; ctx.fillStyle=FCST_COLORS[k]||'#aaa'; ctx.fillRect(gx,yBase,bW,bH); });
     ctx.fillStyle='#A1A1AA'; ctx.textAlign='center'; ctx.font=`7px Inter,sans-serif`; ctx.fillText(MO[mi],pL+mi*mW+mW/2,H-2);
+    c._bars.push({x:gx,y:pT,w:bW,h:pT+cH,mi,tot,cats});
   });
+  attachBarTooltip(c,'forecast');
+}
+
+function attachBarTooltip(canvas, kind){
+  // Remove previous listener
+  if(canvas._tipHandler) canvas.removeEventListener('click',canvas._tipHandler);
+  if(canvas._tipHandlerMove) canvas.removeEventListener('mousemove',canvas._tipHandlerMove);
+
+  // Shared tooltip element
+  let tip=document.getElementById('chart-tooltip');
+  if(!tip){
+    tip=document.createElement('div'); tip.id='chart-tooltip';
+    tip.style.cssText='position:fixed;z-index:9999;background:rgba(15,15,20,.88);color:#fff;border-radius:10px;padding:10px 14px;font:500 12px/1.5 var(--f);pointer-events:none;display:none;min-width:130px;box-shadow:0 4px 20px rgba(0,0,0,.3);backdrop-filter:blur(8px)';
+    document.body.appendChild(tip);
+  }
+
+  const show=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const mx=(e.clientX-rect.left);
+    const my=(e.clientY-rect.top);
+    const bar=(canvas._bars||[]).find(b=>mx>=b.x&&mx<=b.x+b.w);
+    if(!bar||!bar.tot){ tip.style.display='none'; return; }
+    const lines=[];
+    if(kind==='confirmed'){
+      CAT_ORDER.forEach((k,i)=>{ const v=bar.cats[i]; if(v>0) lines.push(`<span style="color:${catInfo(k).color}">■</span> ${catInfo(k).label}: <b>${brl(v)}</b>`); });
+    } else {
+      CAT_ORDER.forEach(k=>{ const v=bar.cats[k]||0; if(v>0) lines.push(`<span style="color:${FCST_COLORS[k]||'#aaa'}">■</span> ${catInfo(k).label}: <b>≈${brl(v)}</b>`); });
+    }
+    tip.innerHTML=`<div style="font-size:11px;opacity:.7;margin-bottom:5px">${MF[bar.mi]} — ${kind==='forecast'?'Previsões':'Realizadas'}</div>${lines.join('<br>')}${bar.tot?`<div style="margin-top:6px;border-top:1px solid rgba(255,255,255,.15);padding-top:5px;font-weight:700">Total: ${kind==='forecast'?'≈':''}${brl(bar.tot)}</div>`:''}`;
+    // Position tooltip: above cursor, avoid edge
+    const tx=Math.min(e.clientX+8, window.innerWidth-160);
+    const ty=Math.max(e.clientY-tip.offsetHeight-12, 8);
+    tip.style.left=tx+'px'; tip.style.top=ty+'px'; tip.style.display='block';
+  };
+
+  const hide=()=>{ tip.style.display='none'; };
+
+  canvas._tipHandler=show;
+  canvas._tipHandlerMove=show;
+  canvas.style.cursor='pointer';
+  canvas.addEventListener('click', show);
+  canvas.addEventListener('mousemove', show);
+  canvas.addEventListener('mouseleave', hide);
 }
 
 /* ─── TX LIST ─── */
@@ -1141,12 +1180,21 @@ async function renderTxList(){
   const groups={};
   rows.forEach(r=>{ const k=`${r.academicYear}-${String(r.academicMonth).padStart(2,'0')}`; (groups[k]=groups[k]||[]).push(r); });
   const sortedKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const nowKey = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
   w.innerHTML=sortedKeys.map(k=>{
     const [yr,mo]=k.split('-');
-    const total=groups[k].filter(r=>r.type!=='FORECAST').reduce((a,r)=>(r.type==='PAID'?a-r.amount:a+r.amount),0);
-    return `<div style="padding:8px 20px 4px;font-size:11px;font-weight:600;color:var(--t-3);letter-spacing:.05em;text-transform:uppercase">${MF[+mo-1]} ${yr}</div>
-    <div class="card" style="margin:0 20px 10px">${groups[k].map(txHTML).join('')}</div>`;
+    const isCurrent = k===nowKey;
+    return `<div id="txmonth-${k}" style="padding:8px 20px 4px;font-size:11px;font-weight:600;color:${isCurrent?'var(--accent)':'var(--t-3)'};letter-spacing:.05em;text-transform:uppercase">${isCurrent?'● ':''} ${MF[+mo-1]} ${yr}</div>
+    <div class="card" style="margin:0 20px 10px${isCurrent?';border-color:rgba(59,91,219,.2)':''}">${groups[k].map(txHTML).join('')}</div>`;
   }).join('');
+
+  // Scroll to current month after paint — only on initial nav, not on filter change
+  if(!search && !type && !cat && !student){
+    requestAnimationFrame(()=>{
+      const el=$('txmonth-'+nowKey);
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  }
 }
 
 function onSearch(){ $('search-clear').classList.toggle('show', !!$('tx-search').value); renderTxList(); }
@@ -1236,6 +1284,52 @@ async function downloadTxFile(fileId){
   }catch(e){ toast('❌ Erro ao baixar arquivo'); }
 }
 
+/* ─── DOC UPLOAD (sem IA — só armazenamento) ─── */
+function resetDocUpload(){
+  const inp=$('doc-file-input'); if(inp) inp.value='';
+  const idle=$('doc-idle'), info=$('doc-file-info');
+  if(idle) idle.style.display='block';
+  if(info) info.style.display='none';
+}
+
+function onDocDrop(e){ e.preventDefault(); $('doc-drop').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) loadDocFile(f); }
+
+async function loadDocFile(f){
+  if(!f)return;
+  const ext=(f.name.split('.').pop()||'').toLowerCase();
+  if(!['pdf','jpg','jpeg','png','txt'].includes(ext)){toast('❌ Use PDF, JPG, PNG ou TXT');return;}
+  if(f.size>15*1024*1024){toast('❌ Arquivo > 15 MB');return;}
+  const icMap={pdf:'📄',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',txt:'📝'};
+  $('doc-idle').style.display='none';
+  $('doc-file-info').style.display='flex';
+  $('doc-file-ic').textContent=icMap[ext]||'📎';
+  $('doc-file-nm').textContent=f.name;
+  $('doc-file-sz').textContent=(f.size/1024).toFixed(1)+' KB';
+  // Store in ai_files and capture id
+  try{
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+      const newId=await dbPut('ai_files',{name:f.name,size:f.size,type:f.type,ext,data:ev.target.result,storedAt:new Date().toISOString()});
+      S._pendingFileId=newId;
+      toast('📎 Arquivo pronto para salvar com a transação');
+    };
+    reader.readAsDataURL(f);
+  }catch(e){ toast('❌ Erro ao ler arquivo'); }
+}
+
+function clearDocFile(e){
+  e.stopPropagation();
+  S._pendingFileId=null;
+  resetDocUpload();
+}
+
+function removeExistingFile(){
+  S._existingFileId=null;
+  S._removeFile=true; // flag to clear fileId on save
+  const banner=$('existing-file-banner'); if(banner) banner.style.display='none';
+  toast('📎 Documento removido — salve para confirmar');
+}
+
 async function delTxById(id){
   await dbDel('txs',id); closeSheet('tx-sheet'); toast('🗑 Excluído');
   await initYearFilter();
@@ -1318,6 +1412,9 @@ async function resetForm(){
   S.editId=null;
   S._pendingFileId=null;
   S._existingFileId=null;
+  S._removeFile=false;
+  // Clear doc upload UI
+  resetDocUpload();
   const banner=$('existing-file-banner'); if(banner) banner.style.display='none';
   const clone=S.copyFrom; S.copyFrom=null;
 
@@ -1354,7 +1451,6 @@ async function resetForm(){
     await refreshPartySelect();
     if(S.cats.length) $('f-cat').value=S.cats[0].key;
   }
-  resetAI();
 }
 
 async function editTx(id){
@@ -1423,20 +1519,23 @@ async function saveTx(){
     date, academicYear:+$('f-year').value, academicMonth:+$('f-month').value,
     isLate:$('tog').classList.contains('on'),
     student, notes:$('f-notes').value, tags:$('f-tags').value,
-    fileId: S._pendingFileId || (S.editId ? undefined : null) || undefined,
     updatedAt:new Date().toISOString()
   };
-  // Preserve existing fileId when editing (don't overwrite with null unless new file loaded)
-  if(S.editId && !S._pendingFileId){
+  // File handling
+  if(S._pendingFileId){
+    tx.fileId=S._pendingFileId;
+  } else if(S.editId && !S._removeFile){
+    // Preserve existing fileId when editing without changing file
     const existing=await dbAll('txs');
     const orig=existing.find(x=>x.id===S.editId);
     if(orig?.fileId) tx.fileId=orig.fileId;
   }
+  // _removeFile=true means user explicitly removed the file
   if(S.editId) tx.id=S.editId;
   else tx.createdAt=new Date().toISOString();
 
   await dbPut('txs',tx);
-  S._pendingFileId = null;
+  S._pendingFileId=null; S._removeFile=false;
   toast(S.editId?'✅ Atualizado!':'✅ Salvo!');
   S.editId=null; await initYearFilter(); nav('txs');
 }
@@ -1622,9 +1721,12 @@ async function renderReport(){
       tot.extra+=(cats.extra||0); tot.sub+=sub; tot.recv+=recv; tot.diff+=diff;
       const fcPtot=Object.values(fcP).reduce((a,b)=>a+b,0);
       yrFcstP+=fcPtot; yrFcstR+=fcR;
+      // per-cat forecast totals
+      if(!tot.fcst) tot.fcst={mensalidade:0,matricula:0,material:0,uniforme:0,extra:0,pensao:0};
+      ['mensalidade','matricula','material','uniforme','extra'].forEach(k=>{ tot.fcst[k]+=(fcP[k]||0); });
+      tot.fcst.pensao+=fcR;
 
       const dateCell=recv>0?`${fmtD(payD||'')}${late?`<span class="late-tag">■ atraso</span>`:''}`:'—';
-      // %Pai coloring: red if below accord, green if above, blue if equal (within 0.5%)
       let pctClass='';
       if(accordTarget>0){
         const diff2=pct-(accordTarget/sub*100);
@@ -1634,6 +1736,7 @@ async function renderReport(){
       }
       const pctCell=sub>0?`<span class="${pctClass}">${pct.toFixed(1)}%</span>`:'—';
       const accordCell=accordTarget>0?`<span class="${recv>=accordTarget?'recv':'neg'}">${brl(accordTarget)}</span>`:'—';
+      const fc=v=>v?`<span class="fcst-col">≈${brl(v)}</span>`:`<span style="color:var(--t-5)">—</span>`;
 
       rowsHtml+=`<tr>
         <td>${MF[m-1]}</td>
@@ -1644,12 +1747,17 @@ async function renderReport(){
         <td class="r">${cats.extra?brl(cats.extra):'—'}</td>
         <td class="r subtotal-col">${sub?brl(sub):'—'}</td>
         <td class="r recv">${recv?brl(recv):'—'}</td>
-        <td class="r" style="min-width:110px">${dateCell}</td>
+        <td class="r" style="min-width:100px">${dateCell}</td>
         <td class="r ${diff>0?'neg':'recv'}">${diff!==0?(diff>0?'–':'+')+brl(Math.abs(diff)):'—'}</td>
         <td class="r">${pctCell}</td>
         <td class="r accord-col">${accordCell}</td>
-        <td class="r fcst-col">${fcPtot?'≈'+brl(fcPtot):'<span style="color:var(--t-5)">—</span>'}</td>
-        <td class="r fcst-col">${fcR?'≈'+brl(fcR):'<span style="color:var(--t-5)">—</span>'}</td>
+        <td class="r fcst-group">${fc(fcP.mensalidade)}</td>
+        <td class="r fcst-group">${fc(fcP.matricula)}</td>
+        <td class="r fcst-group">${fc(fcP.material)}</td>
+        <td class="r fcst-group">${fc(fcP.uniforme)}</td>
+        <td class="r fcst-group">${fc(fcP.extra)}</td>
+        <td class="r fcst-group" style="border-left:1px solid rgba(124,58,237,.15)">${fc(fcPtot)}</td>
+        <td class="r fcst-group">${fc(fcR)}</td>
       </tr>`;
     }
 
@@ -1663,16 +1771,29 @@ async function renderReport(){
       <colgroup>
         <col class="c-mes"><col class="c-val"><col class="c-val"><col class="c-val"><col class="c-val"><col class="c-val">
         <col class="c-sub"><col class="c-pens"><col class="c-date"><col class="c-diff"><col class="c-pct">
-        <col class="c-acc"><col class="c-fcst"><col class="c-fcst">
+        <col class="c-acc">
+        <col class="c-fcst fcst-group"><col class="c-fcst fcst-group"><col class="c-fcst fcst-group"><col class="c-fcst fcst-group"><col class="c-fcst fcst-group">
+        <col class="c-fcst fcst-group"><col class="c-fcst fcst-group">
       </colgroup>
-      <thead><tr>
-        <th>Mês</th><th>Mensalidade</th><th>Matrícula</th><th>Material</th><th>Uniforme</th><th>Extra</th>
-        <th class="subtotal-col" style="border-left:2px solid rgba(255,255,255,.2)">Subtotal</th>
-        <th>Pensão</th><th>Data Pagamento</th><th>Diferença</th><th>% Pai</th>
-        <th class="accord-h">Acordado</th>
-        <th class="fcst-h">◆ Prev. Pago</th>
-        <th class="fcst-h">◆ Prev. Recv.</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th rowspan="2">Mês</th><th rowspan="2">Mensalidade</th><th rowspan="2">Matrícula</th><th rowspan="2">Material</th><th rowspan="2">Uniforme</th><th rowspan="2">Extra</th>
+          <th class="subtotal-col" rowspan="2" style="border-left:2px solid rgba(255,255,255,.2)">Subtotal</th>
+          <th rowspan="2">Pensão</th><th rowspan="2">Data Pgto</th><th rowspan="2">Diferença</th><th rowspan="2">% Pai</th>
+          <th class="accord-h" rowspan="2">Acordado</th>
+          <th class="fcst-h fcst-group" colspan="5" style="text-align:center;border-left:1px solid rgba(124,58,237,.2)">◆ Prev. Pago (por categoria)</th>
+          <th class="fcst-h fcst-group" colspan="2" style="text-align:center">◆ Prev. Totais</th>
+        </tr>
+        <tr>
+          <th class="fcst-h fcst-group" style="font-weight:500;border-left:1px solid rgba(124,58,237,.15)">Mensalidade</th>
+          <th class="fcst-h fcst-group" style="font-weight:500">Matrícula</th>
+          <th class="fcst-h fcst-group" style="font-weight:500">Material</th>
+          <th class="fcst-h fcst-group" style="font-weight:500">Uniforme</th>
+          <th class="fcst-h fcst-group" style="font-weight:500">Extra</th>
+          <th class="fcst-h fcst-group" style="font-weight:700;border-left:1px solid rgba(124,58,237,.2)">Total Pago</th>
+          <th class="fcst-h fcst-group" style="font-weight:700">Pensão Recv.</th>
+        </tr>
+      </thead>
       <tbody>${rowsHtml}
         <tr class="total-row">
           <td>TOTAL ${yr}</td>
@@ -1686,8 +1807,13 @@ async function renderReport(){
           <td class="r neg">–${brl(Math.abs(tot.diff))}</td>
           <td class="r ${tPct!=='—'?((tot.recv/tot.sub)>=(tAccord/tot.sub||.5)?'pct-ok':'pct-bad'):''}">${tPct}</td>
           <td class="r accord-col">${tAccord?brl(tAccord):'—'}</td>
-          <td class="r fcst-col">${yrFcstP?'≈'+brl(yrFcstP):'—'}</td>
-          <td class="r fcst-col">${yrFcstR?'≈'+brl(yrFcstR):'—'}</td>
+          <td class="r fcst-col fcst-group">${tot.fcst?.mensalidade?'≈'+brl(tot.fcst.mensalidade):'—'}</td>
+          <td class="r fcst-col fcst-group">${tot.fcst?.matricula?'≈'+brl(tot.fcst.matricula):'—'}</td>
+          <td class="r fcst-col fcst-group">${tot.fcst?.material?'≈'+brl(tot.fcst.material):'—'}</td>
+          <td class="r fcst-col fcst-group">${tot.fcst?.uniforme?'≈'+brl(tot.fcst.uniforme):'—'}</td>
+          <td class="r fcst-col fcst-group">${tot.fcst?.extra?'≈'+brl(tot.fcst.extra):'—'}</td>
+          <td class="r fcst-col fcst-group" style="border-left:1px solid rgba(124,58,237,.15)">${yrFcstP?'≈'+brl(yrFcstP):'—'}</td>
+          <td class="r fcst-col fcst-group">${yrFcstR?'≈'+brl(yrFcstR):'—'}</td>
         </tr>
       </tbody></table></div>
     </div>`;
@@ -1707,6 +1833,24 @@ async function renderReport(){
     <div class="gt-cell"><div class="gt-label">Lançamentos</div><div class="gt-value">${allRows.filter(r=>r.type==='FORECAST'&&(S.year==='all'||r.academicYear===S.year)).length}</div></div>
   </div>`:'';
   $('rpt-content').innerHTML=gtHtml+fcHtml+html;
+  // Reapply forecast column visibility state
+  if(!S.fcstVisible){
+    document.querySelectorAll('.fcst-group').forEach(el=>{ el.style.display='none'; });
+  }
+}
+
+/* ─── FORECAST COLUMNS TOGGLE ─── */
+function toggleFcstCols(){
+  S.fcstVisible = !S.fcstVisible;
+  const btn=$('btn-toggle-fcst');
+  document.querySelectorAll('.fcst-group').forEach(el=>{
+    el.style.display = S.fcstVisible ? '' : 'none';
+  });
+  if(btn){
+    btn.classList.toggle('violet', S.fcstVisible);
+    btn.classList.toggle('gray', !S.fcstVisible);
+    btn.textContent = S.fcstVisible ? '◆ Ocultar Prev.' : '◆ Previsões';
+  }
 }
 
 async function printReport(){
@@ -1963,184 +2107,6 @@ async function importJSON(file){
     }
   };
   reader.readAsText(file);
-}
-
-/* ─── AI — LOCAL PARSER ──────────────────────────────────────
-   Lê relatório de pagamento escolar Colégio Objectivo.
-   Mapeamento específico do documento PDF:
-     "Valor pago" → amount
-     "Data de processamento" (linha Aprovado) → date (Data do Pagamento)
-     "Ano/Mês" → academicYear + academicMonth
-     "Aluno" → student (Lara / Chloe / Ambas)
-     Tipo → sempre PAID (Saída)
-─────────────────────────────────────────────────────────────── */
-let _aiFile=null, _aiText=null;
-
-function resetAI(){
-  _aiFile=null; _aiText=null;
-  $('ai-file').value='';
-  $('ai-idle').style.display='block'; $('ai-file-info').style.display='none';
-  const btn=$('ai-run-btn'); btn.disabled=true; btn.style.cssText='';
-  $('ai-run-ic').textContent='✦'; $('ai-run-txt').textContent='Interpretar com IA';
-  $('ai-status').textContent=''; $('ai-result').style.display='none';
-  document.querySelectorAll('.ai-hi').forEach(e=>e.classList.remove('ai-hi'));
-}
-
-function onAiDrop(e){ e.preventDefault(); $('ai-drop').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) loadAiFile(f); }
-
-async function loadAiFile(f){
-  if(!f)return;
-  const ext=(f.name.split('.').pop()||'').toLowerCase();
-  if(!['pdf','jpg','jpeg','png','txt'].includes(ext)){toast('❌ Use PDF, JPG, PNG ou TXT');return;}
-  if(f.size>15*1024*1024){toast('❌ Arquivo > 15 MB');return;}
-  _aiFile=f;
-  $('ai-idle').style.display='none'; $('ai-file-info').style.display='flex';
-  $('ai-file-ic').textContent={pdf:'📄',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',txt:'📝'}[ext]||'📎';
-  $('ai-file-nm').textContent=f.name; $('ai-file-sz').textContent=(f.size/1024).toFixed(1)+' KB';
-  $('ai-run-btn').disabled=false;
-  // Pre-read text for PDF/TXT so we can parse it
-  if(ext==='txt'||ext==='pdf'){
-    await new Promise(resolve=>{
-      const reader=new FileReader();
-      reader.onload=ev=>{ _aiText=ev.target.result; resolve(); };
-      reader.readAsText(f,'utf-8');
-    });
-  }
-  // Store file in ai_files and capture the generated id
-  try{
-    const reader=new FileReader();
-    reader.onload=async ev=>{
-      const newId=await dbPut('ai_files',{name:f.name,size:f.size,type:f.type,ext,data:ev.target.result,storedAt:new Date().toISOString()});
-      S._pendingFileId=newId; // link to transaction on save
-    };
-    reader.readAsDataURL(f);
-  }catch(e){}
-}
-
-function clearAiFile(e){ e.stopPropagation(); resetAI(); }
-
-async function runAI(){
-  if(!_aiFile){toast('⚠️ Selecione um arquivo');return;}
-  const btn=$('ai-run-btn'); btn.disabled=true;
-  $('ai-run-ic').innerHTML='<span class="spinner"></span>'; $('ai-run-txt').textContent='Analisando…';
-  $('ai-status').textContent='Processando localmente…';
-  await new Promise(r=>setTimeout(r,40));
-  try{
-    const result=localAIParse(_aiText||'',_aiFile.name);
-    applyAI(result);
-  }catch(err){
-    toast('❌ '+err.message,4000);
-    btn.disabled=false; $('ai-run-ic').textContent='✦'; $('ai-run-txt').textContent='Tentar novamente';
-    $('ai-status').textContent='';
-  }
-}
-
-function localAIParse(text,filename){
-  const t=text||'';
-
-  /* ── Relatório de Pagamento Colégio Objectivo ──
-     Estrutura esperada:
-       Valor pago: [Bandeira] [final] [parcelas] [VALOR]
-       Situação: Aprovado [data] - ...
-       Cobrança Aluno ... [Ano/Mês]
-  */
-
-  // ── Valor pago — linha do cartão: "[bandeira] [final] [parcelas] VALOR"
-  let amount=null;
-  const vpLine=t.match(/(?:\d+\s+[\d,\.]+\s*$|\-\s+\d{4}\s+\d+\s+([\d,\.]+))/m);
-  if(vpLine) amount=parseFloat(vpLine[1]?.replace(',','.'));
-  if(!amount){
-    // fallback: "Valor pago ... VALOR" or any R$ pattern
-    const rMatch=t.match(/(?:Valor pago|valor\s+total)[^\n\d]*([\d]{1,4}[.,][\d]{2})/i);
-    if(rMatch) amount=parseFloat(rMatch[1].replace(',','.'));
-  }
-  if(!amount){
-    // find last decimal number that looks like a price (4+ digits or with R$)
-    const mAll=[...t.matchAll(/R\$\s*([\d.,]+)/gi)];
-    if(mAll.length){ const last=mAll[mAll.length-1]; amount=parseFloat(last[1].replace(/\./g,'').replace(',','.')); }
-  }
-  if(!amount){
-    const mGeneral=t.match(/([\d]{1,6}[.,][\d]{2})\s*$/m);
-    if(mGeneral) amount=parseFloat(mGeneral[1].replace(',','.'));
-  }
-
-  // ── Data do Pagamento = "Data de processamento" (Aprovado linha)
-  // Pattern: "Aprovado DD/MM/YYYY - HH..."
-  let date=null;
-  const aprovadoM=t.match(/Aprovado\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  if(aprovadoM) date=`${aprovadoM[3]}-${aprovadoM[2]}-${aprovadoM[1]}`;
-  if(!date){
-    // fallback: any date pattern
-    const dBR=t.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    if(dBR) date=`${dBR[3]}-${dBR[2]}-${dBR[1]}`;
-  }
-  if(!date) date=TODAY;
-
-  // ── Ano/Mês de referência — "YYYY/M" or "YYYY/MM"
-  let academicYear=new Date(date+'T12:00:00').getFullYear();
-  let academicMonth=new Date(date+'T12:00:00').getMonth()+1;
-  const anoMesM=t.match(/Ano\/M[eê]s[^\d]*(\d{4})\/(\d{1,2})/i)||(t.match(/(\d{4})\/(\d{1,2})(?!\d)/));
-  if(anoMesM){ academicYear=+anoMesM[1]; academicMonth=+anoMesM[2]; }
-
-  // ── Aluno → student
-  let student='Ambas';
-  if(/\bLARA\b/i.test(t)) student='Lara';
-  else if(/\bCHLOE\b|CHLOÉ/i.test(t)) student='Chloe';
-
-  // ── Categoria — relatório de pagamento escolar → mensalidade
-  // If filename contains "mensalidade" or document has "cobranças"/"vencimento"
-  let categoryKey='mensalidade';
-  if(/matr[íi]cula/i.test(t)||/matr[íi]cula/i.test(filename)) categoryKey='matricula';
-  else if(/material/i.test(t)) categoryKey='material';
-  else if(/uniforme/i.test(t)) categoryKey='uniforme';
-  else if(/excurs[ãa]o/i.test(t)||filename.toLowerCase().includes('excurs')) categoryKey='extra';
-
-  // ── Tipo → sempre PAID para relatório de pagamento
-  const type='PAID';
-
-  // ── isLate
-  const isLate=/atraso|atrasado|vencido|overdue/i.test(t);
-
-  // ── Confidence
-  let hits=0;
-  if(amount&&amount>10) hits++;
-  if(date&&date!==TODAY) hits++;
-  if(anoMesM) hits++;
-  if(student!=='Ambas') hits++;
-  const confidence=hits>=3?'high':hits>=2?'medium':'low';
-
-  const notes=`${MF[academicMonth-1]}/${academicYear} — ${student}`;
-  const summary=`${catInfo(categoryKey).label} — ${brl(amount||0)} — ${fmtD(date)} — Ref: ${MF[academicMonth-1]}/${academicYear} — ${student}`;
-
-  return {amount:amount||0,type,categoryKey,party:'Me',isLate,date,academicYear,academicMonth,student,notes,tags:categoryKey,confidence,summary};
-}
-
-function applyAI(d){
-  const btn=$('ai-run-btn'); btn.disabled=false;
-  btn.style.background='var(--green)'; btn.style.color='#fff';
-  $('ai-run-ic').textContent='✓'; $('ai-run-txt').textContent='Preenchido';
-  const cfC={high:'var(--green)',medium:'var(--orange)',low:'var(--red)'};
-  $('ai-status').innerHTML=`<span style="color:${cfC[d.confidence||'medium']};font-weight:600">● ${{high:'Alta confiança',medium:'Verificar campos',low:'Revisar tudo'}[d.confidence||'medium']}</span>`;
-  $('ai-summary').textContent=d.summary||'Documento analisado.';
-  $('ai-result').style.display='flex';
-
-  const fieldMap=[
-    ['f-val',d.amount?.toString()],['f-type',d.type],['f-cat',d.categoryKey],
-    ['f-party',d.party],['f-date',d.date],
-    ['f-year',d.academicYear?.toString()],['f-month',d.academicMonth?.toString()],
-    ['f-notes',d.notes],['f-tags',d.tags]
-  ];
-  fieldMap.forEach(([id,v],i)=>{
-    if(v==null||v==='')return;
-    setTimeout(()=>{
-      const el=$(id); if(!el)return;
-      if(el.tagName==='SELECT'){ const opt=[...el.options].find(o=>o.value===String(v)); if(opt) el.value=opt.value; }
-      else el.value=v;
-      el.classList.add('ai-hi'); setTimeout(()=>el.classList.remove('ai-hi'),3000);
-    },i*60);
-  });
-  if(d.isLate) setTimeout(()=>$('tog').classList.add('on'),600);
-  if(d.student) setTimeout(()=>setStudent(d.student),200);
 }
 
 /* ─── SEED DATA ─────────────────────────────────────────────── */
