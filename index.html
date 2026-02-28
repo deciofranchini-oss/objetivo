@@ -1086,7 +1086,7 @@ const dbDel   = (s,k) => new Promise((res,rej) => { const r=db.transaction(s,'re
 const dbClear = s     => new Promise((res,rej) => { const r=db.transaction(s,'readwrite').objectStore(s).clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
 
 /* ─── STATE ─── */
-const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, hiddenCats:new Set(), hiddenFcstCats:new Set(), _pendingFileId:null, _existingFileId:null, _removeFile:false, _convFileId:null };
+const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, hiddenCats:new Set(), hiddenFcstCats:new Set(), hiddenFunding:new Set(), _pendingFileId:null, _existingFileId:null, _removeFile:false, _convFileId:null };
 const MO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MF = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CAT_PAID  = ['mensalidade','matricula','material','uniforme','extra'];
@@ -1278,10 +1278,7 @@ function drawCharts(d,fc){
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px">
           <canvas id="cv1" style="width:110px;height:110px"></canvas>
           <div class="donut-name">Financiamento</div>
-          <div style="width:100%;display:flex;flex-direction:column;gap:4px">
-            <div class="leg-item"><div class="leg-swatch" style="background:#3B5BDB"></div>Décio &amp; Bruna<span class="leg-pct">${d.paid>0?(def/d.paid*100).toFixed(0):0}%</span></div>
-            <div class="leg-item"><div class="leg-swatch" style="background:#C0392B"></div>Pai<span class="leg-pct">${d.paid>0?(d.recv/d.paid*100).toFixed(0):0}%</span></div>
-          </div>
+          <div id="pie1-leg" style="width:100%;display:flex;flex-direction:column;gap:4px"></div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px">
           <canvas id="cv2" style="width:110px;height:110px"></canvas>
@@ -1305,11 +1302,58 @@ function drawCharts(d,fc){
       </div>
     </div>`:''}`;
 
-  donut('cv1',[{v:def,c:'#3B5BDB'},{v:d.recv,c:'#C0392B'}],'Total',brlK(d.paid).replace('R$\u202F',''),110);
-  donut('cv2',CAT_ORDER.map(k=>({v:bc[k]||0,c:catInfo(k).color})),'Total',brlK(gt).replace('R$\u202F',''),110);
-  $('pie2-leg').innerHTML=CAT_ORDER.map(k=>{ const v=bc[k]||0; if(!v)return ''; const p=gt>0?(v/gt*100).toFixed(0):0; return `<div class="leg-item"><div class="leg-swatch" style="background:${catInfo(k).color}"></div>${catInfo(k).label}<span class="leg-pct">${p}%</span></div>`; }).join('');
+  drawDonut1(def, d.recv, d.paid);
+  // Build donut2 respecting hidden cats
+  drawDonut2(bc, gt);
   barChart('cv3',d);
   if(hasFcst) barForecast('cv4',fc);
+}
+
+function drawDonut1(def, recv, paid){
+  const cv=$('cv1'); if(!cv) return;
+  // Cache for re-render
+  cv._d1={def,recv,paid};
+
+  const slices=[
+    {key:'decio', v:S.hiddenFunding.has('decio')?0:def,  c:'#3B5BDB', label:'Décio & Bruna'},
+    {key:'pai',   v:S.hiddenFunding.has('pai')  ?0:recv, c:'#C0392B', label:'Pai'},
+  ];
+  const visPaid=slices.reduce((a,s)=>a+s.v,0);
+  const totalLabel=brlK(visPaid||paid).replace('R$\u202F','');
+  donut('cv1', slices, 'Total', totalLabel, 110);
+
+  const leg=$('pie1-leg'); if(!leg) return;
+  leg.innerHTML=slices.map(s=>{
+    const hidden=S.hiddenFunding.has(s.key);
+    const pct=paid>0&&!hidden?Math.round(s.v/paid*100)+'%':'—';
+    return `<div class="leg-item leg-toggle${hidden?' leg-off':''}" onclick="toggleFunding('${s.key}')">
+      <div class="leg-swatch" style="background:${s.c}"></div>
+      <span>${s.label}</span>
+      <span class="leg-pct">${pct}</span>
+    </div>`;
+  }).join('');
+}
+
+function drawDonut2(bc, gt){
+  // Compute visible total (excluding hidden cats)
+  const visSlices=CAT_ORDER.map(k=>({k,v:S.hiddenCats.has(k)?0:(bc[k]||0),c:catInfo(k).color}));
+  const visGt=visSlices.reduce((a,s)=>a+s.v,0);
+  const totalLabel=brlK(visGt||Object.values(bc).reduce((a,v)=>a+v,0)).replace('R$\u202F','');
+  donut('cv2',visSlices,'Total',totalLabel,110);
+  // Cache for re-render on toggle
+  const cv=$('cv2'); if(cv){ cv._bcData=bc; cv._gtData=gt; }
+  // Render legend
+  $('pie2-leg').innerHTML=CAT_ORDER.map(k=>{
+    const v=bc[k]||0; if(!v) return '';
+    const hidden=S.hiddenCats.has(k);
+    const visTotal=visGt||1;
+    const p=hidden?'—':((v/visTotal*100).toFixed(0)+'%');
+    return `<div class="leg-item leg-toggle${hidden?' leg-off':''}" onclick="toggleCatDonut('${k}')" title="Clique para mostrar/ocultar">
+      <div class="leg-swatch" style="background:${catInfo(k).color}"></div>
+      <span>${catInfo(k).label}</span>
+      <span class="leg-pct">${p}</span>
+    </div>`;
+  }).join('');
 }
 
 function donut(id,slices,lbl,val,SZ){
@@ -1330,6 +1374,29 @@ function donut(id,slices,lbl,val,SZ){
 }
 
 /* ─── CATEGORY TOGGLE IN CHARTS ─── */
+function toggleFunding(key){
+  if(S.hiddenFunding.has(key)) S.hiddenFunding.delete(key); else S.hiddenFunding.add(key);
+  const cv=$('cv1');
+  if(cv && cv._d1) drawDonut1(cv._d1.def, cv._d1.recv, cv._d1.paid);
+}
+
+function toggleCatDonut(k){
+  // Toggle in hiddenCats (shared with bar chart)
+  if(S.hiddenCats.has(k)) S.hiddenCats.delete(k); else S.hiddenCats.add(k);
+  // Re-render donut2
+  const cv=$('cv2');
+  if(cv && cv._bcData!=null) drawDonut2(cv._bcData, cv._gtData);
+  // Re-render bar chart too (same hiddenCats)
+  const cv3=$('cv3');
+  if(cv3 && cv3._dData) barChart('cv3', cv3._dData);
+  // Update leg-confirmed badges
+  const legEl=$('leg-confirmed');
+  if(legEl) legEl.querySelectorAll('.leg-toggle').forEach(el=>{
+    const key=el.getAttribute('onclick').match(/'([^']+)'/)[1];
+    el.classList.toggle('leg-off', S.hiddenCats.has(key));
+  });
+}
+
 function toggleCat(k, kind){
   const set = kind==='forecast' ? S.hiddenFcstCats : S.hiddenCats;
   if(set.has(k)) set.delete(k); else set.add(k);
@@ -1337,7 +1404,6 @@ function toggleCat(k, kind){
   const legId = kind==='forecast'?'leg-forecast':'leg-confirmed';
   const legEl=$(legId);
   if(legEl){
-    const CAT = kind==='forecast'?FCST_COLORS:null;
     legEl.querySelectorAll('.leg-toggle').forEach(el=>{
       const key=el.getAttribute('onclick').match(/'([^']+)'/)[1];
       el.classList.toggle('leg-off', set.has(key));
@@ -1348,6 +1414,9 @@ function toggleCat(k, kind){
     const cv=$('cv4'); if(cv&&cv._fcData) barForecast('cv4',cv._fcData);
   } else {
     const cv=$('cv3'); if(cv&&cv._dData) barChart('cv3',cv._dData);
+    // Also sync donut2 since it shares hiddenCats
+    const cv2=$('cv2');
+    if(cv2&&cv2._bcData!=null) drawDonut2(cv2._bcData, cv2._gtData);
   }
 }
 
