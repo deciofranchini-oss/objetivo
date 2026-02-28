@@ -2755,68 +2755,121 @@ async function generateAndEmail(){
 
   const btn = $('email-gen-btn');
   btn.disabled = true;
-  $('email-gen-status').style.display = 'block';
-  $('email-gen-status').innerHTML = '<span class="spinner" style="display:inline-block;margin-right:8px"></span>Gerando relatório…';
+  const setStatus = (msg) => {
+    $('email-gen-status').style.display = 'block';
+    $('email-gen-status').innerHTML = `<span class="spinner" style="display:inline-block;margin-right:8px"></span>${msg}`;
+  };
 
   try {
-    // ── Garantir que o relatório está renderizado ─────────────────────────────
+    // ── 1. Garantir que o relatório está renderizado ──────────────────────────
+    setStatus('Gerando relatório…');
     if(S.tab !== 'rpt'){ nav('rpt'); await new Promise(r=>setTimeout(r,600)); }
     if(!$('rpt-content').querySelector('.rpt-card')){ await renderReport(); await new Promise(r=>setTimeout(r,400)); }
 
     const hideFcst = $('email-hide-fcst').checked;
     if(hideFcst) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='none');
-    await new Promise(r=>setTimeout(r,100));
+    await new Promise(r=>setTimeout(r,150));
 
-    // ── Construir conteúdo do relatório em texto ──────────────────────────────
     const yr = S.year==='all' ? 'Todos os anos' : S.year;
     const now = new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-
-    // Extract table data as readable text
-    const rows = [...$('rpt-content').querySelectorAll('tr')];
-    const tableText = rows.map(r =>
-      [...r.querySelectorAll('th,td')].map(c=>c.textContent.trim()).filter(Boolean).join(' | ')
-    ).filter(Boolean).join('\n');
-
-    // Restore fcst
-    if(hideFcst && S.fcstVisible) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='');
-
-    // ── Enviar via EmailJS ────────────────────────────────────────────────────
-    $('email-gen-status').innerHTML = '<span class="spinner" style="display:inline-block;margin-right:8px"></span>Enviando email…';
-
-    emailjs.init(EMAILJS_PUBLIC_KEY);
-
     const subject = $('email-subject').value || `Relatório de Pagamentos ${yr}`;
     const bodyNote = $('email-body').value || 'Segue o relatório de pagamentos.';
+
+    // ── 2. Gerar HTML do relatório como blob ──────────────────────────────────
+    setStatus('Gerando HTML do relatório…');
+    const rptNode = $('rpt-content');
+    const styles = [...document.styleSheets].map(s => {
+      try { return [...s.cssRules].map(r => r.cssText).join('\n'); } catch(e){ return ''; }
+    }).join('\n');
+    const htmlContent = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Relatório ${yr}</title>
+<style>
+  body{font-family:-apple-system,Inter,sans-serif;font-size:12px;color:#18181B;background:#fff;padding:20px;max-width:900px;margin:0 auto}
+  h2{color:#3B5BDB;margin-bottom:4px} p{color:#71717A;font-size:11px;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{background:#3B5BDB;color:#fff;padding:6px 8px;text-align:left}
+  td{padding:5px 8px;border-bottom:1px solid #e5e7eb}
+  tr:nth-child(even) td{background:#f9fafb}
+  .fcst-group{${hideFcst?'display:none!important':''}}
+</style></head><body>
+<h2>Gerenciamento de Pagamentos D&B — ${yr}</h2>
+<p>Gerado em ${now} · Enviado automaticamente pelo app</p>
+${rptNode.innerHTML}
+</body></html>`;
+
+    // Restore fcst cols
+    if(hideFcst && S.fcstVisible) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='');
+
+    // ── 3. Upload HTML para Supabase Storage ─────────────────────────────────
+    setStatus('Enviando relatório para a nuvem…');
+    const filename = `relatorio-${yr.replace(/\s+/g,'-')}-${Date.now()}.html`;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const file = new File([blob], filename, { type: 'text/html' });
+
+    // Upload to Supabase Storage bucket 'reports'
+    let reportUrl = null;
+    try {
+      const { error: upErr } = await _sb.storage.from('reports').upload(filename, file, {
+        contentType: 'text/html', upsert: true
+      });
+      if(upErr && upErr.message === 'Bucket not found'){
+        // Cria bucket reports automaticamente
+        await _sb.storage.createBucket('reports', { public: true });
+        const { error: up2Err } = await _sb.storage.from('reports').upload(filename, file, {
+          contentType: 'text/html', upsert: true
+        });
+        if(up2Err) throw up2Err;
+      } else if(upErr) {
+        throw upErr;
+      }
+      // Gera URL pública (bucket público)
+      const { data: urlData } = _sb.storage.from('reports').getPublicUrl(filename);
+      reportUrl = urlData?.publicUrl;
+    } catch(storageErr) {
+      console.warn('Storage upload falhou, enviando sem link:', storageErr.message);
+      // Continua sem link — vai fazer download local
+    }
+
+    // ── 4. Se não conseguiu hospedar, faz download local como fallback ────────
+    if(!reportUrl){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 3000);
+    }
+
+    // ── 5. Enviar email via EmailJS com link ──────────────────────────────────
+    setStatus('Enviando email…');
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+
+    const linkLine = reportUrl
+      ? `\n\n📎 Relatório completo (HTML): ${reportUrl}`
+      : `\n\n📎 Relatório baixado para o seu dispositivo (sem link — erro no Storage).`;
 
     const result = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email:       to,
       month_year:     yr,
-      report_content: `${bodyNote}
-
-Gerado em: ${now}
-Ano: ${yr}
-
-──────────────────────────
-${tableText}
-──────────────────────────
-
-Enviado automaticamente pelo app Gerenciamento de Pagamentos D&B.`
+      report_content: `${bodyNote}\n\nGerado em: ${now}\nAno: ${yr}${linkLine}\n\nEnviado automaticamente pelo app Gerenciamento de Pagamentos D&B.`
     });
 
-    if(result.status !== 200) throw new Error('EmailJS retornou status ' + result.status);
+    if(result.status !== 200) throw new Error('EmailJS status ' + result.status);
 
-    // ── Sucesso ───────────────────────────────────────────────────────────────
+    // ── 6. Sucesso ────────────────────────────────────────────────────────────
     $('email-gen-status').style.display = 'none';
     $('email-step-1').style.display = 'none';
     $('email-step-2').style.display = 'block';
-    $('email-summary').innerHTML = `Email enviado para <b>${to}</b><br>Assunto: <i>${subject}</i>`;
-    toast('✅ Email enviado com sucesso!');
+    $('email-summary').innerHTML = reportUrl
+      ? `Email enviado para <b>${to}</b><br>Link do relatório incluído no email.`
+      : `Email enviado para <b>${to}</b><br>Relatório baixado localmente (Storage indisponível).`;
+    toast('✅ Email enviado!');
 
   } catch(e) {
-    console.error('EmailJS error:', e);
+    console.error('Email error:', e);
     $('email-gen-status').style.display = 'none';
     btn.disabled = false;
-    toast('❌ Erro ao enviar: ' + (e?.text || e?.message || String(e)), 8000);
+    toast('❌ ' + (e?.text || e?.message || String(e)), 8000);
   }
 }
 
