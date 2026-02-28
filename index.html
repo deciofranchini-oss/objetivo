@@ -855,6 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <button class="pill-btn gray" onclick="openEmailSheet()">✉️&nbsp; Enviar por Email</button>
     <button class="pill-btn gray" onclick="exportCSV()">📥&nbsp; CSV</button>
     <button class="pill-btn gray" id="btn-toggle-fcst" onclick="toggleFcstCols()" title="Mostrar/ocultar colunas de previsão">◆&nbsp; Previsões</button>
+    <button class="pill-btn green" id="btn-toggle-accord" onclick="toggleAccordCols()" title="Mostrar/ocultar coluna de acordo">🤝&nbsp; Acordo</button>
   </div>
   <div id="rpt-content"><div class="empty-state"><span class="spinner"></span></div></div>
   <div id="rpt-hint" style="padding:0 20px 20px;font-size:11px;color:var(--t-4);line-height:2">
@@ -1136,6 +1137,10 @@ document.addEventListener('DOMContentLoaded', function() {
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t-2);cursor:pointer;margin-bottom:8px">
             <input type="checkbox" id="email-hide-fcst" style="width:16px;height:16px;accent-color:var(--accent)">
             Ocultar colunas de previsão
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t-2);cursor:pointer;margin-bottom:8px">
+            <input type="checkbox" id="email-hide-accord" style="width:16px;height:16px;accent-color:var(--accent)">
+            Ocultar coluna de acordo
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t-2);cursor:pointer">
             <input type="checkbox" id="email-year-only" style="width:16px;height:16px;accent-color:var(--accent)">
@@ -1483,7 +1488,7 @@ function sbDisconnect() {
 }
 
 /* ─── STATE ─── */
-const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, hiddenCats:new Set(), hiddenFcstCats:new Set(), hiddenFunding:new Set(), _pendingFile:null, _existingFilePath:null, _removeFile:false, _convFile:null };
+const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, accordVisible:true, hiddenCats:new Set(), hiddenFcstCats:new Set(), hiddenFunding:new Set(), _pendingFile:null, _existingFilePath:null, _removeFile:false, _convFile:null };
 const MO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MF = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CAT_PAID  = ['mensalidade','matricula','material','uniforme','extra'];
@@ -2278,7 +2283,7 @@ async function resetForm(){
     $('f-val').value='';
     $('f-type').value='PAID'; onTypeChange();
     $('f-date').value=TODAY;
-    const yr=(S.year==='all')?new Date().getFullYear():S.year;
+    const yr = (S.year==='all') ? String(new Date().getFullYear()) : String(S.year);
     const fy=$('f-year'); if(fy) fy.value=yr;
     $('f-month').value=new Date().getMonth()+1;
     setStudent('Ambas');
@@ -2721,6 +2726,19 @@ function toggleFcstCols(){
   }
 }
 
+function toggleAccordCols(){
+  S.accordVisible = !S.accordVisible;
+  const btn = $('btn-toggle-accord');
+  document.querySelectorAll('.accord-col, .accord-h').forEach(el=>{
+    el.style.display = S.accordVisible ? '' : 'none';
+  });
+  if(btn){
+    btn.classList.toggle('green',  S.accordVisible);
+    btn.classList.toggle('gray',  !S.accordVisible);
+    btn.textContent = S.accordVisible ? '🤝 Ocultar Acordo' : '🤝 Acordo';
+  }
+}
+
 /* ─── LOGOUT ─── */
 function logout(){
   sessionStorage.removeItem('sl-auth');
@@ -2743,7 +2761,7 @@ function openEmailSheet(){
   $('email-gen-status').style.display='none';
   $('email-gen-btn').disabled=false;
   _emailPdfBlob=null;
-  const yr=S.year==='all'?new Date().getFullYear():S.year;
+  const yr = S.year==='all' ? String(new Date().getFullYear()) : String(S.year);
   $('email-subject').value=`Relatório de Pagamentos ${yr}`;
   $('email-body').value=`Olá,\n\nSegue em anexo o relatório de pagamentos do Colégio Objectivo — ${yr}.\n\nAtenciosamente,\nGerenciamento de Pagamentos`;
   $('email-sheet').classList.add('open');
@@ -2767,7 +2785,9 @@ async function generateAndEmail(){
     if(!$('rpt-content').querySelector('.rpt-card')){ await renderReport(); await new Promise(r=>setTimeout(r,400)); }
 
     const hideFcst = $('email-hide-fcst').checked;
-    if(hideFcst) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='none');
+    const hideAccord = $('email-hide-accord')?.checked;
+    if(hideFcst)   document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='none');
+    if(hideAccord) document.querySelectorAll('.accord-col, .accord-h').forEach(el=>el.style.display='none');
     await new Promise(r=>setTimeout(r,150));
 
     const yr = S.year==='all' ? 'Todos os anos' : String(S.year);
@@ -2797,12 +2817,13 @@ async function generateAndEmail(){
 ${rptNode.innerHTML}
 </body></html>`;
 
-    // Restore fcst cols
-    if(hideFcst && S.fcstVisible) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='');
+    // Restore fcst + accord cols
+    if(hideFcst   && S.fcstVisible)   document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='');
+    if(hideAccord && S.accordVisible) document.querySelectorAll('.accord-col, .accord-h').forEach(el=>el.style.display='');
 
     // ── 3. Upload HTML para Supabase Storage ─────────────────────────────────
     setStatus('Enviando relatório para a nuvem…');
-    const filename = `relatorio-${yr.replace(/\s+/g,'-')}-${Date.now()}.html`;
+    const filename = `relatorio-${String(yr).replace(/\s+/g,'-')}-${Date.now()}.html`;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const file = new File([blob], filename, { type: 'text/html' });
 
