@@ -15,6 +15,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════
    SCHOOL LEDGER v5 — Design System
@@ -2947,79 +2949,110 @@ async function generateAndEmail(){
     const subject = $('email-subject').value || `Relatório de Pagamentos ${yr}`;
     const bodyNote = $('email-body').value || 'Segue o relatório de pagamentos.';
 
-    // ── 2. Gerar HTML do relatório como blob ──────────────────────────────────
-    setStatus('Gerando HTML do relatório…');
+    // ── 2. Gerar PDF do relatório ─────────────────────────────────────────────
+    setStatus('Gerando PDF…');
     const rptNode = $('rpt-content');
-    const styles = [...document.styleSheets].map(s => {
-      try { return [...s.cssRules].map(r => r.cssText).join('\n'); } catch(e){ return ''; }
-    }).join('\n');
-    const htmlContent = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Relatório ${yr}</title>
-<style>
-  body{font-family:-apple-system,Inter,sans-serif;font-size:12px;color:#18181B;background:#fff;padding:20px;max-width:900px;margin:0 auto}
-  h2{color:#3B5BDB;margin-bottom:4px} p{color:#71717A;font-size:11px;margin-bottom:16px}
-  table{width:100%;border-collapse:collapse;font-size:11px}
-  th{background:#3B5BDB;color:#fff;padding:6px 8px;text-align:left}
-  td{padding:5px 8px;border-bottom:1px solid #e5e7eb}
-  tr:nth-child(even) td{background:#f9fafb}
-  .fcst-group{${hideFcst?'display:none!important':''}}
-</style></head><body>
-<h2>Gerenciamento de Pagamentos D&B — ${yr}</h2>
-<p>Gerado em ${now} · Enviado automaticamente pelo app</p>
-${rptNode.innerHTML}
-</body></html>`;
+
+    // Capture report as canvas then convert to PDF
+    const canvas = await html2canvas(rptNode, {
+      scale: 1.5,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: 900
+    });
 
     // Restore fcst + accord cols
     if(hideFcst   && S.fcstVisible)   document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='');
     if(hideAccord && S.accordVisible) document.querySelectorAll('.accord-col, .accord-h').forEach(el=>el.style.display='');
 
-    // ── 3. Upload HTML para Supabase Storage ─────────────────────────────────
-    setStatus('Enviando relatório para a nuvem…');
-    const filename = `relatorio-${String(yr).replace(/\s+/g,'-')}-${Date.now()}.html`;
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-    const file = new File([blob], filename, { type: 'text/html' });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW  = pageW;
+    const imgH  = (canvas.height * pageW) / canvas.width;
 
-    // Upload to Supabase Storage bucket 'reports'
-    let reportUrl = null;
-    try {
-      const { error: upErr } = await _sb.storage.from('reports').upload(filename, file, {
-        contentType: 'text/html', upsert: true
-      });
-      if(upErr && upErr.message === 'Bucket not found'){
-        // Cria bucket reports automaticamente
-        await _sb.storage.createBucket('reports', { public: true });
-        const { error: up2Err } = await _sb.storage.from('reports').upload(filename, file, {
-          contentType: 'text/html', upsert: true
-        });
-        if(up2Err) throw up2Err;
-      } else if(upErr) {
-        throw upErr;
-      }
-      // Gera URL pública (bucket público)
-      const { data: urlData } = _sb.storage.from('reports').getPublicUrl(filename);
-      reportUrl = urlData?.publicUrl;
-    } catch(storageErr) {
-      console.warn('Storage upload falhou, enviando sem link:', storageErr.message);
-      // Continua sem link — vai fazer download local
+    // Add title header
+    pdf.setFillColor(59, 91, 219);
+    pdf.rect(0, 0, pageW, 28, 'F');
+    pdf.setTextColor(255,255,255);
+    pdf.setFontSize(13);
+    pdf.setFont('helvetica','bold');
+    pdf.text('Gerenciamento de Pagamentos D&B — ' + yr, 12, 18);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica','normal');
+    pdf.text(now, pageW - 12, 18, { align: 'right' });
+
+    // Add report image — paginate if needed
+    const startY = 32;
+    let remaining = imgH;
+    let srcY = 0;
+    let isFirst = true;
+    while(remaining > 0) {
+      const available = isFirst ? (pageH - startY) : pageH;
+      const sliceH = Math.min(remaining, available);
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = (sliceH / imgW) * canvas.width;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, srcY * (canvas.width / imgW), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+      const sliceImg = sliceCanvas.toDataURL('image/jpeg', 0.85);
+      pdf.addImage(sliceImg, 'JPEG', 0, isFirst ? startY : 0, pageW, sliceH);
+      srcY += sliceH;
+      remaining -= sliceH;
+      if(remaining > 0) { pdf.addPage(); isFirst = false; }
     }
 
-    // ── 4. Se não conseguiu hospedar, faz download local como fallback ────────
-    if(!reportUrl){
-      const url = URL.createObjectURL(blob);
+    const pdfBlob = pdf.output('blob');
+    const htmlContent = null; // not used anymore — keeping variable for compat
+
+    // ── 3. Upload HTML para Supabase Storage ─────────────────────────────────
+    setStatus('Enviando relatório para a nuvem…');
+    const filename = `relatorio-${String(yr).replace(/\s+/g,'-')}-${Date.now()}.pdf`;
+    const blob = pdfBlob;
+    const file = new File([blob], filename, { type: 'application/pdf' });
+
+    let reportUrl = null;
+    let storageErrMsg = null;
+
+    // Tenta criar bucket se não existir
+    const { error: bucketErr } = await _sb.storage.createBucket('reports', {
+      public: true, fileSizeLimit: 10485760
+    });
+    // Ignora se já existe
+    if(bucketErr && !bucketErr.message.includes('already exists') && !bucketErr.message.includes('duplicate')) {
+      console.warn('createBucket:', bucketErr.message);
+    }
+
+    // Upload
+    const { error: upErr } = await _sb.storage.from('reports').upload(filename, file, {
+      contentType: 'application/pdf', upsert: true
+    });
+
+    if(upErr) {
+      storageErrMsg = upErr.message;
+      console.error('Storage upload falhou:', upErr.message);
+      // Fallback: download local
+      const localUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = filename;
+      a.href = localUrl; a.download = filename; // .pdf
       document.body.appendChild(a); a.click();
       document.body.removeChild(a);
-      setTimeout(()=>URL.revokeObjectURL(url), 3000);
+      setTimeout(()=>URL.revokeObjectURL(localUrl), 5000);
+    } else {
+      const { data: urlData } = _sb.storage.from('reports').getPublicUrl(filename);
+      reportUrl = urlData?.publicUrl || null;
+      console.log('Storage upload OK, URL:', reportUrl);
     }
 
     // ── 5. Enviar email via EmailJS com link ──────────────────────────────────
     setStatus('Enviando email…');
     emailjs.init(EMAILJS_PUBLIC_KEY);
 
-    const linkLine = reportUrl
-      ? `\n\n📎 Relatório completo (HTML): ${reportUrl}`
-      : `\n\n📎 Relatório baixado para o seu dispositivo (sem link — erro no Storage).`;
+    const linkLine = storageErrMsg
+      ? `\n\n⚠️ Relatório baixado localmente (erro Storage: ${storageErrMsg})`
+      : '';
 
     // ── Calcular resumo compacto para o email ────────────────────────────────
     const txs = await dbAll('txs');
@@ -3079,8 +3112,8 @@ ${rptNode.innerHTML}
     $('email-step-1').style.display = 'none';
     $('email-step-2').style.display = 'block';
     $('email-summary').innerHTML = reportUrl
-      ? `Email enviado para <b>${to}</b><br>Link do relatório incluído no email.`
-      : `Email enviado para <b>${to}</b><br>Relatório baixado localmente (Storage indisponível).`;
+      ? `Email enviado para <b>${to}</b><br>✅ Link do relatório incluído no email.`
+      : `Email enviado para <b>${to}</b><br>⚠️ Storage: ${storageErrMsg||'sem link'} — relatório baixado localmente.`;
     toast('✅ Email enviado!');
 
   } catch(e) {
