@@ -13,7 +13,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="./supabase-config.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════
    SCHOOL LEDGER v5 — Design System
@@ -382,7 +381,7 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
 
 <!-- ░░ LOCK SCREEN ░░ -->
 <!-- ░░ SUPABASE SETUP SCREEN ░░ -->
-<div id="sb-setup-screen" style="position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;gap:18px;overflow-y:auto">
+<div id="sb-setup-screen" style="display:none;position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;gap:18px;overflow-y:auto">
   <div style="font-size:52px;line-height:1;margin-bottom:4px">🗄️</div>
   <div style="font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--t-1);text-align:center">Conectar ao Supabase</div>
   <div style="font-size:14px;color:var(--t-3);text-align:center;max-width:340px;line-height:1.7">
@@ -1091,6 +1090,9 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
 <!-- ═══ JAVASCRIPT ═══ -->
 <script>
 'use strict';
+/* ── SUPABASE CREDENTIALS ── embutidas diretamente no app ── */
+const SUPABASE_URL      = 'https://rrdxukcfdpacnixqhgsp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZHh1a2NmZHBhY25peHFoZ3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjk4NDEsImV4cCI6MjA4Nzg0NTg0MX0.n2fD3bqGoU62m8tKzfSRN2ofZcaEfZnTudyPS7Forck';
 /* ══════════════════════════════════════════════════════════
    SCHOOL LEDGER v5 — Engine
    IndexedDB v4: txs, cats, cfg, parties, ai_files
@@ -1311,7 +1313,7 @@ async function sbConnect() {
 }
 
 function sbDisconnect() {
-  if (!confirm('Desconectar do Supabase? O app reconectará automaticamente via supabase-config.js na próxima abertura.')) return;
+  if (!confirm('Desconectar do Supabase? O app reconectará automaticamente na próxima abertura.')) return;
   localStorage.removeItem('sb-url');
   localStorage.removeItem('sb-key');
   sessionStorage.removeItem('sl-auth');
@@ -3088,13 +3090,12 @@ async function _bootApp() {
 }
 
 async function boot() {
-  // ── Auto-connect usando constantes de supabase-config.js ──────────────────
+  // ── Auto-connect usando credenciais embutidas no script ──────────────────
   // Se SUPABASE_URL e SUPABASE_ANON_KEY estiverem definidos no config,
   // conecta diretamente sem mostrar a tela de setup.
-  const url = (typeof SUPABASE_URL      !== 'undefined' ? SUPABASE_URL      : null)
-           || localStorage.getItem('sb-url');
-  const key = (typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : null)
-           || localStorage.getItem('sb-key');
+  // Credenciais embutidas no topo do script — sempre disponíveis
+  const url = SUPABASE_URL;
+  const key = SUPABASE_ANON_KEY;
 
   if (url && key) {
     try {
