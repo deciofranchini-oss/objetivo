@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="./supabase-config.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════
    SCHOOL LEDGER v5 — Design System
@@ -380,32 +381,38 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
 <body>
 
 <!-- ░░ LOCK SCREEN ░░ -->
-<!-- ░░ SUPABASE CONFIG SCREEN ░░ -->
-<div id="supabase-screen" style="position:fixed;inset:0;z-index:998;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;gap:20px">
-  <div style="font-size:48px;line-height:1">🗄️</div>
-  <div style="font-size:22px;font-weight:700;letter-spacing:-.03em">Conectar ao Supabase</div>
+<!-- ░░ SUPABASE SETUP SCREEN ░░ -->
+<div id="sb-setup-screen" style="position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;gap:18px;overflow-y:auto">
+  <div style="font-size:52px;line-height:1;margin-bottom:4px">🗄️</div>
+  <div style="font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--t-1);text-align:center">Conectar ao Supabase</div>
   <div style="font-size:14px;color:var(--t-3);text-align:center;max-width:340px;line-height:1.7">
-    Informe as credenciais do seu projeto.<br>Salvas apenas neste dispositivo (localStorage).
+    Cole as credenciais do seu projeto Supabase.<br>Ficam salvas neste dispositivo e nunca<br>são enviadas a terceiros.
   </div>
-  <div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px">
+  <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:12px">
     <div>
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--t-3);margin-bottom:5px">PROJECT URL</div>
-      <input id="sb-url-input" type="url" autocomplete="off" placeholder="https://xxxxxxxxxxxx.supabase.co"
-        style="width:100%;padding:11px 14px;border:1.5px solid var(--sep);border-radius:var(--r2);font:400 14px/1 var(--f);background:var(--card);color:var(--t-1);outline:none;transition:border-color .15s"
+      <div style="font-size:11px;font-weight:700;letter-spacing:.07em;color:var(--t-3);margin-bottom:6px;text-transform:uppercase">Project URL</div>
+      <input id="sb-url-inp" type="url" autocomplete="off" spellcheck="false"
+        placeholder="https://xxxxxxxxxxx.supabase.co"
+        style="width:100%;padding:12px 14px;border:1.5px solid var(--sep);border-radius:var(--r2);font:400 14px/1 var(--f);background:var(--card);color:var(--t-1);outline:none;transition:border-color .15s"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--sep)'">
     </div>
     <div>
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--t-3);margin-bottom:5px">ANON PUBLIC KEY</div>
-      <input id="sb-key-input" type="text" autocomplete="off" placeholder="eyJhbGciOiJIUzI1NiIs..."
-        style="width:100%;padding:11px 14px;border:1.5px solid var(--sep);border-radius:var(--r2);font:400 12px/1.3 var(--mono);background:var(--card);color:var(--t-1);outline:none;transition:border-color .15s"
-        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--sep)'">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.07em;color:var(--t-3);margin-bottom:6px;text-transform:uppercase">Anon / Public Key</div>
+      <textarea id="sb-key-inp" rows="3" autocomplete="off" spellcheck="false"
+        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        style="width:100%;padding:12px 14px;border:1.5px solid var(--sep);border-radius:var(--r2);font:400 12px/1.5 var(--mono);background:var(--card);color:var(--t-1);outline:none;resize:none;transition:border-color .15s"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--sep)'"></textarea>
     </div>
-    <div id="sb-conn-error" style="display:none;padding:10px 14px;background:var(--red-l);border-radius:var(--r);font-size:13px;color:var(--red);font-weight:500;line-height:1.5"></div>
-    <button onclick="connectSupabase()" id="sb-conn-btn" style="margin-top:4px;padding:14px;border:none;border-radius:var(--r2);background:var(--accent);color:#fff;font:600 15px/1 var(--f);cursor:pointer;transition:opacity .15s"
-      onmousedown="this.style.opacity='.75'" onmouseup="this.style.opacity='1'">Conectar →</button>
+    <div id="sb-setup-err" style="display:none;padding:11px 14px;background:var(--red-l);border-radius:var(--r);font-size:13px;color:var(--red);font-weight:500;line-height:1.5"></div>
+    <button id="sb-connect-btn" onclick="sbConnect()"
+      style="padding:14px;border:none;border-radius:var(--r2);background:var(--accent);color:#fff;font:600 15px/1 var(--f);cursor:pointer;transition:opacity .15s"
+      onmousedown="this.style.opacity='.75'" onmouseup="this.style.opacity='1'">
+      Conectar →
+    </button>
   </div>
-  <div style="font-size:11px;color:var(--t-4);text-align:center;line-height:1.8">
-    Credenciais salvas no localStorage deste browser.<br>Nunca enviadas a terceiros.
+  <div style="font-size:11px;color:var(--t-4);text-align:center;line-height:1.9;margin-top:4px">
+    Credenciais salvas apenas no <strong>localStorage</strong> deste browser.<br>
+    Nunca trafegam para nenhum servidor externo.
   </div>
 </div>
 
@@ -543,7 +550,7 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
         <line x1="21" y1="12" x2="9" y2="12"/>
       </svg>
     </button>
-            <button class="btn" style="background:var(--fill);color:var(--t-2);border:1.5px solid var(--sep);margin-top:8px" onclick="disconnectSupabase()">🔌 Desconectar Supabase</button>
+            <button class="btn" style="background:var(--fill);color:var(--t-3);border:1.5px solid var(--sep);margin-top:8px;font-size:13px" onclick="sbDisconnect()">🔌&nbsp; Desconectar Supabase</button>
   </div>
 </div>
 
@@ -1089,155 +1096,227 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
    IndexedDB v4: txs, cats, cfg, parties, ai_files
 ══════════════════════════════════════════════════════════ */
 
-/* ─── SUPABASE ─── */
-let SB = null; // Supabase client (initialised in connectSupabase / boot)
+/* ─── SUPABASE CLIENT ─── */
+let _sb = null;  // Supabase client instance — set by sbConnect()
 
-// Mapeamento de colunas: JS camelCase ↔ Supabase snake_case
-function txToRow(tx) {
-  return {
-    id:             tx.id || undefined,
-    amount:         tx.amount,
-    type:           tx.type,
-    category_key:   tx.categoryKey,
-    party_id:       tx.partyId || null,
-    party_legacy:   tx.party   || null,
-    date:           tx.date,
-    academic_year:  tx.academicYear,
-    academic_month: tx.academicMonth,
-    is_late:        tx.isLate || false,
-    student:        tx.student || 'Ambas',
-    notes:          tx.notes  || null,
-    tags:           tx.tags   || null,
-    file_name:      tx.fileName || null,
-    file_type:      tx.fileType || null,
-    file_data:      tx.fileData || null,
+// ── Mapeamentos JS (camelCase) ↔ Postgres (snake_case) ─────────────────────
+
+function _txToRow(tx) {
+  const r = {
+    amount:        Number(tx.amount),
+    type:          tx.type,
+    category_key:  tx.categoryKey,
+    party_id:      tx.partyId  || null,
+    party_legacy:  tx.party    || null,
+    tx_date:       tx.date,
+    academic_year: tx.academicYear,
+    academic_month:tx.academicMonth,
+    is_late:       !!tx.isLate,
+    student:       tx.student  || 'Ambas',
+    notes:         tx.notes    || null,
+    tags:          tx.tags     || null,
   };
+  if (tx.id) r.id = tx.id;
+  return r;
 }
-function rowToTx(r) {
+
+function _rowToTx(r) {
   return {
     id:            r.id,
-    amount:        parseFloat(r.amount),
+    amount:        Number(r.amount),
     type:          r.type,
     categoryKey:   r.category_key,
     partyId:       r.party_id,
     party:         r.party_legacy,
-    date:          r.date,
+    date:          r.tx_date,
     academicYear:  r.academic_year,
     academicMonth: r.academic_month,
     isLate:        r.is_late,
     student:       r.student,
     notes:         r.notes,
     tags:          r.tags,
-    fileName:      r.file_name,
-    fileType:      r.file_type,
-    fileData:      r.file_data,
     createdAt:     r.created_at,
     updatedAt:     r.updated_at,
   };
 }
-function rowToParty(r) {
-  return { id: r.id, name: r.name, emoji: r.emoji };
-}
-function rowToCat(r) {
-  return { key: r.key, label: r.label, color: r.color, system: r.is_system };
-}
 
-// ─── DB Abstraction (todas as funções do app chamam estas) ─────────────────
+function _rowToCat(r)   { return { key: r.key, label: r.label, color: r.color, system: r.is_system }; }
+function _rowToParty(r) { return { id: r.id, name: r.name, emoji: r.emoji, createdAt: r.created_at }; }
+
+// ── Abstração de DB — o resto do app NÃO muda ──────────────────────────────
+
 async function dbAll(store) {
-  if (store === 'txs')     { const {data,error}=await SB.from('transactions').select('*').order('date',{ascending:false}); if(error) throw error; return data.map(rowToTx); }
-  if (store === 'cats')    { const {data,error}=await SB.from('categories').select('*').order('key'); if(error) throw error; return data.map(rowToCat); }
-  if (store === 'parties') { const {data,error}=await SB.from('parties').select('*').order('name'); if(error) throw error; return data.map(rowToParty); }
-  if (store === 'cfg')     { const {data,error}=await SB.from('config').select('*'); if(error) throw error; return data.map(r=>({k:r.k,...r.value})); }
-  if (store === 'ai_files'){ return localFileAll(); } // arquivos no IndexedDB local
-  return [];
-}
-async function dbGet(store, key) {
-  if (store === 'cfg') { const {data,error}=await SB.from('config').select('*').eq('k',key).maybeSingle(); if(error) throw error; return data?{k:data.k,...data.value}:null; }
-  if (store === 'txs') { const {data,error}=await SB.from('transactions').select('*').eq('id',key).maybeSingle(); if(error) throw error; return data?rowToTx(data):null; }
-  if (store === 'parties') { const {data,error}=await SB.from('parties').select('*').eq('id',key).maybeSingle(); if(error) throw error; return data?rowToParty(data):null; }
-  return null;
-}
-async function dbPut(store, val) {
   if (store === 'txs') {
-    const row = txToRow(val);
-    if (row.id) { const {data,error}=await SB.from('transactions').upsert(row).select('id').single(); if(error) throw error; return data.id; }
-    else { delete row.id; const {data,error}=await SB.from('transactions').insert(row).select('id').single(); if(error) throw error; return data.id; }
+    const { data, error } = await _sb.from('transactions').select('*').order('tx_date', { ascending: false });
+    if (error) throw error;
+    return data.map(_rowToTx);
   }
   if (store === 'cats') {
-    const {error}=await SB.from('categories').upsert({key:val.key,label:val.label,color:val.color,is_system:val.system||false}); if(error) throw error; return val.key;
+    const { data, error } = await _sb.from('categories').select('*').order('key');
+    if (error) throw error;
+    return data.map(_rowToCat);
   }
   if (store === 'parties') {
-    if (val.id) { const {data,error}=await SB.from('parties').upsert({id:val.id,name:val.name,emoji:val.emoji||'👤'}).select('id').single(); if(error) throw error; return data.id; }
-    else { const {data,error}=await SB.from('parties').insert({name:val.name,emoji:val.emoji||'👤'}).select('id').single(); if(error) throw error; return data.id; }
+    const { data, error } = await _sb.from('parties').select('*').order('name');
+    if (error) throw error;
+    return data.map(_rowToParty);
   }
   if (store === 'cfg') {
-    const {k, ...rest} = val;
-    const {error}=await SB.from('config').upsert({k, value:rest}); if(error) throw error; return k;
+    const { data, error } = await _sb.from('app_config').select('*');
+    if (error) throw error;
+    return data.map(r => ({ k: r.k, ...r.value }));
   }
-  if (store === 'ai_files') { return localFilePut(val); }
+  if (store === 'ai_files') {
+    // Arquivos ficam no IndexedDB local — não vão ao Supabase
+    return _idbAll();
+  }
+  return [];
 }
+
+async function dbGet(store, key) {
+  if (store === 'cfg') {
+    const { data, error } = await _sb.from('app_config').select('*').eq('k', key).maybeSingle();
+    if (error) throw error;
+    return data ? { k: data.k, ...data.value } : null;
+  }
+  if (store === 'txs') {
+    const { data, error } = await _sb.from('transactions').select('*').eq('id', key).maybeSingle();
+    if (error) throw error;
+    return data ? _rowToTx(data) : null;
+  }
+  if (store === 'parties') {
+    const { data, error } = await _sb.from('parties').select('*').eq('id', key).maybeSingle();
+    if (error) throw error;
+    return data ? _rowToParty(data) : null;
+  }
+  return null;
+}
+
+async function dbPut(store, val) {
+  if (store === 'txs') {
+    const row = _txToRow(val);
+    if (row.id) {
+      // UPDATE
+      const { data, error } = await _sb.from('transactions').update(row).eq('id', row.id).select('id').single();
+      if (error) throw error;
+      return data.id;
+    } else {
+      // INSERT
+      const { data, error } = await _sb.from('transactions').insert(row).select('id').single();
+      if (error) throw error;
+      return data.id;
+    }
+  }
+  if (store === 'cats') {
+    const { error } = await _sb.from('categories').upsert({
+      key: val.key, label: val.label, color: val.color, is_system: val.system || false
+    }, { onConflict: 'key' });
+    if (error) throw error;
+    return val.key;
+  }
+  if (store === 'parties') {
+    if (val.id) {
+      const { data, error } = await _sb.from('parties')
+        .upsert({ id: val.id, name: val.name, emoji: val.emoji || '👤' }, { onConflict: 'id' })
+        .select('id').single();
+      if (error) throw error;
+      return data.id;
+    } else {
+      const { data, error } = await _sb.from('parties')
+        .insert({ name: val.name, emoji: val.emoji || '👤' })
+        .select('id').single();
+      if (error) throw error;
+      return data.id;
+    }
+  }
+  if (store === 'cfg') {
+    const { k, ...rest } = val;
+    const { error } = await _sb.from('app_config')
+      .upsert({ k, value: rest }, { onConflict: 'k' });
+    if (error) throw error;
+    return k;
+  }
+  if (store === 'ai_files') {
+    return _idbPut(val);
+  }
+}
+
 async function dbDel(store, key) {
-  if (store === 'ai_files') { return localFileDel(key); }
-  const tbl = {txs:'transactions',cats:'categories',parties:'parties'}[store];
-  if (!tbl) return;
-  const col = store==='cats' ? 'key' : 'id';
-  const {error}=await SB.from(tbl).delete().eq(col,key); if(error) throw error;
+  if (store === 'txs')     { const { error } = await _sb.from('transactions').delete().eq('id', key);      if (error) throw error; return; }
+  if (store === 'cats')    { const { error } = await _sb.from('categories').delete().eq('key', key);       if (error) throw error; return; }
+  if (store === 'parties') { const { error } = await _sb.from('parties').delete().eq('id', key);           if (error) throw error; return; }
+  if (store === 'ai_files') { return _idbDel(key); }
 }
+
 async function dbClear(store) {
-  // Usado pelo clearAll — apaga tudo da tabela
-  const tbl = {txs:'transactions',cats:'categories',parties:'parties',cfg:'config',ai_files:null}[store];
-  if (!tbl) return;
-  const {error}=await SB.from(tbl).delete().neq('id',0).catch(()=>({error:null})); // neq id=0 = todos
-  if(error) {
-    // fallback para tabelas com PK não-integer (categories, config)
-    const {error:e2}=await SB.from(tbl).delete().neq('key','__never__');
-    if(e2) console.error('dbClear',store,e2);
-  }
+  // Apaga todos os registros de uma tabela
+  const map = { txs:'transactions', cats:'categories', parties:'parties', cfg:'app_config' };
+  const tbl = map[store]; if (!tbl) return;
+  const pkCol = (store === 'cats') ? 'key' : (store === 'cfg') ? 'k' : 'id';
+  // neq trick: deleta onde pk != valor impossível (= todos os rows)
+  const { error } = await _sb.from(tbl).delete().neq(pkCol, store === 'txs' ? -1 : '__never__');
+  if (error) console.error('dbClear', store, error);
 }
 
-/* ─── SUPABASE CONNECT ──────────────────────────────────────────────────── */
-async function connectSupabase() {
-  const url = $('sb-url-input').value.trim().replace(/\/+$/, '');
-  const key = $('sb-key-input').value.trim();
-  const err = $('sb-conn-error');
-  const btn = $('sb-conn-btn');
-  err.style.display='none';
-  if (!url || !url.startsWith('https://')) { err.textContent='URL inválida. Deve começar com https://'; err.style.display='block'; return; }
-  if (!key || key.length < 100)            { err.textContent='Anon key inválida ou muito curta.'; err.style.display='block'; return; }
-  btn.textContent='Conectando…'; btn.disabled=true;
-  try {
-    SB = supabase.createClient(url, key);
-    // Test connection
-    const {error} = await SB.from('categories').select('key').limit(1);
-    if (error) throw new Error(error.message);
-    localStorage.setItem('sb-url', url);
-    localStorage.setItem('sb-key', key);
-    $('supabase-screen').style.display='none';
-    await bootApp();
-  } catch(e) {
-    err.textContent = '❌ Falha: ' + (e.message||e) + '. Verifique URL e key.';
-    err.style.display='block';
-    btn.textContent='Conectar →'; btn.disabled=false;
-    SB = null;
-  }
-}
-
-
-/* ─── LOCAL FILE CACHE (base64 anexos — IndexedDB local, não vai ao Supabase) ─── */
-const LOCAL_DB_NAME = 'pdb-files';
-let _localDb;
-function openLocalDB() {
-  return new Promise((res,rej)=>{
-    const r = indexedDB.open(LOCAL_DB_NAME, 1);
-    r.onupgradeneeded = e => e.target.result.createObjectStore('files',{keyPath:'id',autoIncrement:true});
-    r.onsuccess = e => { _localDb=e.target.result; res(); };
+// ── IndexedDB LOCAL — apenas para arquivos anexados ────────────────────────
+const _IDB_NAME = 'pdb-local-files';
+let _idb = null;
+function _openIDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(_IDB_NAME, 1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
+    r.onsuccess = e => { _idb = e.target.result; res(); };
     r.onerror   = e => rej(e.target.error);
   });
 }
-function localFilePut(v)  { return new Promise((res,rej)=>{ const r=_localDb.transaction('files','readwrite').objectStore('files').put(v); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-function localFileGet(id) { return new Promise((res,rej)=>{ const r=_localDb.transaction('files','readonly').objectStore('files').get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-function localFileDel(id) { return new Promise((res,rej)=>{ const r=_localDb.transaction('files','readwrite').objectStore('files').delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
-function localFileAll()   { return new Promise((res,rej)=>{ const r=_localDb.transaction('files','readonly').objectStore('files').getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function _idbAll()   { return new Promise((res,rej)=>{ const r=_idb.transaction('files','readonly').objectStore('files').getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function _idbPut(v)  { return new Promise((res,rej)=>{ const r=_idb.transaction('files','readwrite').objectStore('files').put(v);  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function _idbGet(k)  { return new Promise((res,rej)=>{ const r=_idb.transaction('files','readonly').objectStore('files').get(k);   r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function _idbDel(k)  { return new Promise((res,rej)=>{ const r=_idb.transaction('files','readwrite').objectStore('files').delete(k);r.onsuccess=()=>res();         r.onerror=()=>rej(r.error); }); }
+
+// ── Supabase setup / connect / disconnect ──────────────────────────────────
+async function sbConnect() {
+  const url = ($('sb-url-inp').value || '').trim().replace(/\/+$/, '');
+  const key = ($('sb-key-inp').value || '').trim();
+  const errEl = $('sb-setup-err');
+  const btn   = $('sb-connect-btn');
+  errEl.style.display = 'none';
+
+  if (!url.startsWith('https://')) {
+    errEl.textContent = '❌ URL inválida — deve começar com https://';
+    errEl.style.display = 'block'; return;
+  }
+  if (key.length < 100) {
+    errEl.textContent = '❌ Anon key inválida ou incompleta.';
+    errEl.style.display = 'block'; return;
+  }
+
+  btn.textContent = 'Conectando…'; btn.disabled = true;
+  try {
+    _sb = supabase.createClient(url, key);
+    // Test connection with a lightweight query
+    const { error } = await _sb.from('categories').select('key').limit(1);
+    if (error) throw new Error(error.message);
+
+    localStorage.setItem('sb-url', url);
+    localStorage.setItem('sb-key', key);
+    $('sb-setup-screen').style.display = 'none';
+    await _bootApp();
+  } catch (e) {
+    errEl.textContent = '❌ Conexão falhou: ' + (e.message || e) + '\nVerifique URL e anon key.';
+    errEl.style.display = 'block';
+    btn.textContent = 'Conectar →'; btn.disabled = false;
+    _sb = null;
+  }
+}
+
+function sbDisconnect() {
+  if (!confirm('Desconectar do Supabase? O app reconectará automaticamente via supabase-config.js na próxima abertura.')) return;
+  localStorage.removeItem('sb-url');
+  localStorage.removeItem('sb-key');
+  sessionStorage.removeItem('sl-auth');
+  location.reload();
+}
 
 /* ─── STATE ─── */
 const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, hiddenCats:new Set(), hiddenFcstCats:new Set(), hiddenFunding:new Set(), _pendingFileId:null, _existingFileId:null, _removeFile:false, _convFileId:null };
@@ -2757,17 +2836,19 @@ async function saveCatColor(key, color){
 }
 
 async function clearAll(){
-  if(!confirm('⚠️ Apagar TODOS os dados do Supabase? Esta ação é irreversível.')) return;
-  try{
-    await SB.from('transactions').delete().gte('id',0);
-    await SB.from('parties').delete().gte('id',0);
-    await SB.from('config').delete().neq('k','');
-    await SB.from('categories').delete().neq('key','');
+  if(!confirm('⚠️ Apagar TODOS os dados do Supabase? Esta ação não pode ser desfeita.')) return;
+  try {
+    await _sb.from('transactions').delete().gte('id', 0);
+    await _sb.from('parties').delete().gte('id', 0);
+    await _sb.from('app_config').delete().neq('k', '__never__');
+    await _sb.from('categories').delete().neq('key', '__never__');
     toast('🗑 Todos os dados apagados');
-    S.cats=[]; S.parties=[];
+    S.cats = []; S.parties = [];
     await initYearFilter();
     renderDash();
-  }catch(e){ toast('❌ Erro: '+e.message); }
+  } catch(e) {
+    toast('❌ Erro ao apagar: ' + e.message);
+  }
 }
 
 /* ─── JSON EXPORT / IMPORT ─── */
@@ -2811,62 +2892,97 @@ async function importJSON(file){
 
 /* ─── SEED DATA ─────────────────────────────────────────────── */
 async function seedIfEmpty(){
-  const existing=await dbAll('txs'); if(existing.length>0) return; // já tem dados no Supabase
+  // Check if data already exists in Supabase
+  const { count, error } = await _sb.from('transactions').select('*', { count: 'exact', head: true });
+  if (error) { console.error('seedIfEmpty check failed:', error); return; }
+  if (count > 0) return;  // already has data
 
-  const CATS=[
-    {key:'mensalidade',label:'Mensalidade',color:'#3B5BDB',system:true},
-    {key:'pensao',label:'Pensão Alimentícia',color:'#C0392B',system:true},
-    {key:'matricula',label:'Matrícula',color:'#C05C1A',system:true},
-    {key:'material',label:'Material',color:'#1A7F7A',system:true},
-    {key:'uniforme',label:'Uniforme',color:'#6B4FBB',system:true},
-    {key:'extra',label:'Extra',color:'#2E7D55',system:true},
+  const MF_SEED = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  // ── Categorias ──────────────────────────────────────────────
+  const CATS = [
+    {key:'mensalidade',label:'Mensalidade',       color:'#3B5BDB',is_system:true},
+    {key:'pensao',     label:'Pensão Alimentícia', color:'#C0392B',is_system:true},
+    {key:'matricula',  label:'Matrícula',          color:'#C05C1A',is_system:true},
+    {key:'material',   label:'Material',           color:'#1A7F7A',is_system:true},
+    {key:'uniforme',   label:'Uniforme',           color:'#6B4FBB',is_system:true},
+    {key:'extra',      label:'Extra',              color:'#2E7D55',is_system:true},
   ];
-  for(const c of CATS) await dbPut('cats',c);
-  await dbPut('cfg',{k:'accord',type:'pct',pct:50,val:0});
+  await _sb.from('categories').upsert(CATS, { onConflict: 'key' });
 
-  let id=1;
-  const mk=o=>({id:id++,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),student:'Ambas',...o});
+  // ── Partes ──────────────────────────────────────────────────
+  const { data: p1 } = await _sb.from('parties').insert({name:'Décio e Bruna',emoji:'👨‍👩‍👧'}).select('id').single();
+  const { data: p2 } = await _sb.from('parties').insert({name:'Pai',           emoji:'👨'}).select('id').single();
+  const meId     = p1.id;
+  const fatherId = p2.id;
 
-  // 2025 mensalidades
-  const m25=[4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.40];
-  for(let i=0;i<12;i++) await dbPut('txs',mk({amount:m25[i],type:'PAID',categoryKey:'mensalidade',party:'Me',date:`2025-${String(i+1).padStart(2,'0')}-05`,academicYear:2025,academicMonth:i+1,isLate:false,notes:`Mensalidade ${MF[i]}/2025`,tags:'mensalidade'}));
-  await dbPut('txs',mk({amount:4256.88,type:'PAID',categoryKey:'matricula',party:'Me',date:'2025-01-05',academicYear:2025,academicMonth:1,isLate:false,notes:'Matrícula anual 2025',tags:'matricula'}));
-  for(const [m,d]of[[1,'2025-01-05'],[4,'2025-04-05'],[7,'2025-07-05'],[9,'2025-09-05']])
-    await dbPut('txs',mk({amount:724.50,type:'PAID',categoryKey:'material',party:'Me',date:d,academicYear:2025,academicMonth:m,isLate:false,notes:`Material ${MF[m-1]}/2025`,tags:'material'}));
-  await dbPut('txs',mk({amount:1084.23,type:'PAID',categoryKey:'extra',party:'Me',date:'2025-01-05',academicYear:2025,academicMonth:1,isLate:false,notes:'Extra Jan/2025',tags:'extra'}));
+  // ── Acordo ──────────────────────────────────────────────────
+  await _sb.from('app_config').upsert({k:'accord', value:{type:'pct',pct:50,val:0}}, {onConflict:'k'});
 
-  // 2025 pensão
+  // ── Helper ──────────────────────────────────────────────────
+  const tx = (o) => ({
+    party_id:      o.party === 'Me' ? meId : fatherId,
+    party_legacy:  o.party,
+    student:       o.student || 'Ambas',
+    is_late:       o.isLate || false,
+    notes:         o.notes || null,
+    tags:          o.tags  || null,
+    ...o,
+    category_key:  o.categoryKey,
+    tx_date:       o.date,
+    academic_year: o.academicYear,
+    academic_month:o.academicMonth,
+  });
+  // Remove JS-only fields before sending to Supabase
+  const clean = (o) => {
+    const r = tx(o);
+    delete r.party; delete r.categoryKey; delete r.date;
+    delete r.academicYear; delete r.academicMonth; delete r.isLate;
+    return r;
+  };
+
+  // ── Transações 2025 ─────────────────────────────────────────
+  const amounts_m25 = [4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.41,4998.40];
+  const txs2025 = [];
+
+  // Mensalidades
+  for(let i=0;i<12;i++) txs2025.push(clean({amount:amounts_m25[i],type:'PAID',categoryKey:'mensalidade',party:'Me',date:`2025-${String(i+1).padStart(2,'0')}-05`,academicYear:2025,academicMonth:i+1,notes:`Mensalidade ${MF_SEED[i]}/2025`,tags:'mensalidade'}));
+  // Matrícula
+  txs2025.push(clean({amount:4256.88,type:'PAID',categoryKey:'matricula',party:'Me',date:'2025-01-05',academicYear:2025,academicMonth:1,notes:'Matrícula anual 2025',tags:'matricula'}));
+  // Material
+  for(const [m,d] of [[1,'2025-01-05'],[4,'2025-04-05'],[7,'2025-07-05'],[9,'2025-09-05']])
+    txs2025.push(clean({amount:724.50,type:'PAID',categoryKey:'material',party:'Me',date:d,academicYear:2025,academicMonth:m,notes:`Material ${MF_SEED[m-1]}/2025`,tags:'material'}));
+  // Extra
+  txs2025.push(clean({amount:1084.23,type:'PAID',categoryKey:'extra',party:'Me',date:'2025-01-05',academicYear:2025,academicMonth:1,notes:'Extra Jan/2025',tags:'extra'}));
+  // Pensão 2025
   const p25=[[1,'2025-01-05',2000,false],[2,'2025-02-05',2000,false],[3,'2025-03-05',2000,false],[4,'2025-04-05',2000,false],[5,'2025-05-06',1000,true],[6,'2025-06-05',2000,false],[7,'2025-07-03',1000,false],[7,'2025-07-17',1000,true],[8,'2025-08-05',2000,false],[9,'2025-09-05',2000,false],[10,'2025-10-04',2000,false],[11,'2025-11-05',2000,false],[11,'2025-11-22',1500,true],[12,'2025-12-05',3500,false]];
-  for(const[m,d,amt,late]of p25) await dbPut('txs',mk({amount:amt,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:d,academicYear:2025,academicMonth:m,isLate:late,notes:`Pensão ${MF[m-1]}/2025`,tags:'pensao'}));
+  for(const[m,d,amt,late] of p25) txs2025.push(clean({amount:amt,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:d,academicYear:2025,academicMonth:m,isLate:late,notes:`Pensão ${MF_SEED[m-1]}/2025`,tags:'pensao'}));
 
-  // 2026 confirmed
-  for(const[m,d]of[[1,'2026-01-05'],[2,'2026-02-05']])
-    await dbPut('txs',mk({amount:5666.85,type:'PAID',categoryKey:'mensalidade',party:'Me',date:d,academicYear:2026,academicMonth:m,isLate:false,notes:`Mensalidade ${MF[m-1]}/2026`,tags:'mensalidade'}));
-  // New: Lara mensalidade março (from uploaded PDF)
-  await dbPut('txs',mk({amount:2778.76,type:'PAID',categoryKey:'mensalidade',party:'Me',date:'2026-02-27',academicYear:2026,academicMonth:3,isLate:false,student:'Lara',notes:'Mensalidade Mar/2026 — Lara (PDF)',tags:'mensalidade'}));
-  await dbPut('txs',mk({amount:1491.29,type:'PAID',categoryKey:'matricula',party:'Me',date:'2026-01-05',academicYear:2026,academicMonth:1,isLate:false,notes:'Matrícula 2026',tags:'matricula'}));
-  await dbPut('txs',mk({amount:1047.33,type:'PAID',categoryKey:'material',party:'Me',date:'2026-01-05',academicYear:2026,academicMonth:1,isLate:false,notes:'Material Jan/2026',tags:'material'}));
-  await dbPut('txs',mk({amount:1503.41,type:'PAID',categoryKey:'extra',party:'Me',date:'2026-02-05',academicYear:2026,academicMonth:2,isLate:false,notes:'Excursão parcela 1 (entrada)',tags:'extra,excursao'}));
-  await dbPut('txs',mk({amount:2000,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:'2026-01-12',academicYear:2026,academicMonth:1,isLate:true,notes:'Pensão Jan/2026 — com atraso',tags:'pensao'}));
-  await dbPut('txs',mk({amount:2500,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:'2026-02-07',academicYear:2026,academicMonth:2,isLate:true,notes:'Pensão Fev/2026 — com atraso',tags:'pensao'}));
+  await _sb.from('transactions').insert(txs2025);
 
-  // 2026 FORECAST: Mensalidades Mar–Dez
-  for(let i=2;i<12;i++){
-    const m=i+1;
-    await dbPut('txs',mk({amount:5666.85,type:'FORECAST',categoryKey:'mensalidade',party:'Me',date:`2026-${String(m).padStart(2,'0')}-05`,academicYear:2026,academicMonth:m,isLate:false,notes:`Mensalidade ${MF[i]}/2026 (previsão)`,tags:'mensalidade,forecast'}));
-  }
-  // 2026 FORECAST: Pensão (2000/mês) — Pai — Mar–Dez
-  for(let i=2;i<12;i++){
-    const m=i+1;
-    await dbPut('txs',mk({amount:2000,type:'FORECAST',categoryKey:'pensao',party:'Father',date:`2026-${String(m).padStart(2,'0')}-10`,academicYear:2026,academicMonth:m,isLate:false,notes:`Pensão ${MF[i]}/2026 (previsão)`,tags:'pensao,forecast'}));
-  }
-  // 2026 FORECAST: Excursão Mar–Ago
-  for(let i=2;i<8;i++){
-    const m=i+1;
-    await dbPut('txs',mk({amount:429,type:'FORECAST',categoryKey:'extra',party:'Me',date:`2026-${String(m).padStart(2,'0')}-05`,academicYear:2026,academicMonth:m,isLate:false,notes:`Excursão ${MF[i]}/2026 (previsão)`,tags:'extra,excursao,forecast'}));
-  }
+  // ── Transações 2026 ─────────────────────────────────────────
+  const txs2026 = [];
+  // Mensalidades pagas
+  for(const [m,d] of [[1,'2026-01-05'],[2,'2026-02-05']])
+    txs2026.push(clean({amount:5666.85,type:'PAID',categoryKey:'mensalidade',party:'Me',date:d,academicYear:2026,academicMonth:m,notes:`Mensalidade ${MF_SEED[m-1]}/2026`,tags:'mensalidade'}));
+  txs2026.push(clean({amount:2778.76,type:'PAID',categoryKey:'mensalidade',party:'Me',date:'2026-02-27',academicYear:2026,academicMonth:3,student:'Lara',notes:'Mensalidade Mar/2026 — Lara (PDF)',tags:'mensalidade'}));
+  // Matrícula, material, extra
+  txs2026.push(clean({amount:1491.29,type:'PAID',categoryKey:'matricula',party:'Me',date:'2026-01-05',academicYear:2026,academicMonth:1,notes:'Matrícula 2026',tags:'matricula'}));
+  txs2026.push(clean({amount:1047.33,type:'PAID',categoryKey:'material', party:'Me',date:'2026-01-05',academicYear:2026,academicMonth:1,notes:'Material Jan/2026',tags:'material'}));
+  txs2026.push(clean({amount:1503.41,type:'PAID',categoryKey:'extra',    party:'Me',date:'2026-02-05',academicYear:2026,academicMonth:2,notes:'Excursão parcela 1 (entrada)',tags:'extra,excursao'}));
+  // Pensão recebida
+  txs2026.push(clean({amount:2000,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:'2026-01-12',academicYear:2026,academicMonth:1,isLate:true,notes:'Pensão Jan/2026 — com atraso',tags:'pensao'}));
+  txs2026.push(clean({amount:2500,type:'RECEIVED',categoryKey:'pensao',party:'Father',date:'2026-02-07',academicYear:2026,academicMonth:2,isLate:true,notes:'Pensão Fev/2026 — com atraso',tags:'pensao'}));
+  // Previsões mensalidade Mar-Dez
+  for(let i=2;i<12;i++){ const m=i+1; txs2026.push(clean({amount:5666.85,type:'FORECAST',categoryKey:'mensalidade',party:'Me',date:`2026-${String(m).padStart(2,'0')}-05`,academicYear:2026,academicMonth:m,notes:`Mensalidade ${MF_SEED[i]}/2026 (previsão)`,tags:'mensalidade,forecast'})); }
+  // Previsões pensão Mar-Dez
+  for(let i=2;i<12;i++){ const m=i+1; txs2026.push(clean({amount:2000,type:'FORECAST',categoryKey:'pensao',party:'Father',date:`2026-${String(m).padStart(2,'0')}-10`,academicYear:2026,academicMonth:m,notes:`Pensão ${MF_SEED[i]}/2026 (previsão)`,tags:'pensao,forecast'})); }
+  // Previsões excursão Mar-Ago
+  for(let i=2;i<8;i++){  const m=i+1; txs2026.push(clean({amount:429,type:'FORECAST',categoryKey:'extra',party:'Me',date:`2026-${String(m).padStart(2,'0')}-05`,academicYear:2026,academicMonth:m,notes:`Excursão ${MF_SEED[i]}/2026 (previsão)`,tags:'extra,excursao,forecast'})); }
+
+  await _sb.from('transactions').insert(txs2026);
+  console.log('✅ Seed data inserted into Supabase');
 }
-
 /* ─── SHEET CLOSE ON BG ─── */
 document.querySelectorAll('.sheet-bg').forEach(bg=>bg.addEventListener('click',e=>{ if(e.target===bg) bg.classList.remove('open'); }));
 
@@ -2956,14 +3072,14 @@ if('serviceWorker'in navigator) navigator.serviceWorker.register('./sw.js').catc
 
 /* ─── BOOT ─── */
 /* ─── BOOT ─── */
-async function bootApp(){
+async function _bootApp() {
   // Auth gate
-  if(sessionStorage.getItem('sl-auth')==='1'){
-    $('lock-screen').style.display='none';
+  if (sessionStorage.getItem('sl-auth') === '1') {
+    $('lock-screen').style.display = 'none';
   }
-  await openLocalDB();
-  await seedIfEmpty();
-  await migratePartyMe();
+  await _openIDB();          // open local IndexedDB for file attachments
+  await seedIfEmpty();       // seeds Supabase if empty
+  await migratePartyMe();    // migrate legacy party='Me' rows
   await loadAccordConfig();
   await loadCats();
   await loadParties();
@@ -2971,26 +3087,37 @@ async function bootApp(){
   renderDash();
 }
 
-async function boot(){
-  const url = localStorage.getItem('sb-url');
-  const key = localStorage.getItem('sb-key');
-  if(url && key){
-    try{
-      SB = supabase.createClient(url, key);
-      const {error} = await SB.from('categories').select('key').limit(1);
-      if(error) throw error;
-      $('supabase-screen').style.display='none';
-      await bootApp();
-    }catch(e){
-      console.warn('Supabase credentials failed:', e.message);
-      SB = null;
-      localStorage.removeItem('sb-url');
-      localStorage.removeItem('sb-key');
+async function boot() {
+  // ── Auto-connect usando constantes de supabase-config.js ──────────────────
+  // Se SUPABASE_URL e SUPABASE_ANON_KEY estiverem definidos no config,
+  // conecta diretamente sem mostrar a tela de setup.
+  const url = (typeof SUPABASE_URL      !== 'undefined' ? SUPABASE_URL      : null)
+           || localStorage.getItem('sb-url');
+  const key = (typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : null)
+           || localStorage.getItem('sb-key');
+
+  if (url && key) {
+    try {
+      _sb = supabase.createClient(url, key);
+      const { error } = await _sb.from('categories').select('key').limit(1);
+      if (error) throw error;
+      $('sb-setup-screen').style.display = 'none';
+      await _bootApp();
+      return;
+    } catch (e) {
+      console.error('Supabase connection failed:', e.message);
+      // Mostra tela de setup manual como fallback
+      $('sb-setup-screen').style.display = 'flex';
+      const errEl = $('sb-setup-err');
+      if (errEl) { errEl.textContent = '❌ Conexão automática falhou: ' + e.message; errEl.style.display = 'block'; }
+      _sb = null;
     }
+  } else {
+    // Sem config → mostra tela de setup manual
+    $('sb-setup-screen').style.display = 'flex';
   }
-  // If SB still null → supabase-screen stays visible
 }
-window.addEventListener('load',boot);
+window.addEventListener('load', boot);
 </script>
 </body>
 </html>
