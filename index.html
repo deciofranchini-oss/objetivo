@@ -1108,7 +1108,7 @@ function _txToRow(tx) {
     category_key:  tx.categoryKey,
     party_id:      tx.partyId  || null,
     party_legacy:  tx.party    || null,
-    tx_date:       tx.date,
+    date:          tx.date,
     academic_year: tx.academicYear,
     academic_month:tx.academicMonth,
     is_late:       !!tx.isLate,
@@ -1128,7 +1128,7 @@ function _rowToTx(r) {
     categoryKey:   r.category_key,
     partyId:       r.party_id,
     party:         r.party_legacy,
-    date:          r.tx_date,
+    date:          r.date,
     academicYear:  r.academic_year,
     academicMonth: r.academic_month,
     isLate:        r.is_late,
@@ -1147,7 +1147,7 @@ function _rowToParty(r) { return { id: r.id, name: r.name, emoji: r.emoji, creat
 
 async function dbAll(store) {
   if (store === 'txs') {
-    const { data, error } = await _sb.from('transactions').select('*').order('tx_date', { ascending: false });
+    const { data, error } = await _sb.from('transactions').select('*').order('date', { ascending: false });
     if (error) throw error;
     return data.map(_rowToTx);
   }
@@ -2929,7 +2929,7 @@ async function seedIfEmpty(){
     tags:          o.tags  || null,
     ...o,
     category_key:  o.categoryKey,
-    tx_date:       o.date,
+    date:          o.date,
     academic_year: o.academicYear,
     academic_month:o.academicMonth,
   });
