@@ -2770,7 +2770,7 @@ async function generateAndEmail(){
     if(hideFcst) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='none');
     await new Promise(r=>setTimeout(r,150));
 
-    const yr = S.year==='all' ? 'Todos os anos' : S.year;
+    const yr = S.year==='all' ? 'Todos os anos' : String(S.year);
     const now = new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
     const subject = $('email-subject').value || `Relatório de Pagamentos ${yr}`;
     const bodyNote = $('email-body').value || 'Segue o relatório de pagamentos.';
