@@ -2848,45 +2848,50 @@ ${rptNode.innerHTML}
       ? `\n\n📎 Relatório completo (HTML): ${reportUrl}`
       : `\n\n📎 Relatório baixado para o seu dispositivo (sem link — erro no Storage).`;
 
-    // ── Gerar tabela HTML para o email ──────────────────────────────────────
-    const emailRows = [...$('rpt-content').querySelectorAll('tr')];
-    const emailTableHtml = `
-      <table style="width:100%;border-collapse:collapse;font-family:-apple-system,Arial,sans-serif;font-size:13px">
-        ${emailRows.map((row, ri) => {
-          const cells = [...row.querySelectorAll('th,td')];
-          const isHeader = row.querySelector('th');
-          return `<tr style="background:${isHeader?'#3B5BDB':ri%2===0?'#ffffff':'#f8f9ff'}">
-            ${cells.map(cell => isHeader
-              ? `<th style="padding:8px 10px;text-align:left;color:#fff;font-weight:600;font-size:12px">${cell.textContent.trim()}</th>`
-              : `<td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#374151">${cell.textContent.trim()}</td>`
-            ).join('')}
-          </tr>`;
-        }).join('')}
-      </table>`;
+    // ── Calcular resumo compacto para o email ────────────────────────────────
+    const txs = await dbAll('txs');
+    const txsAno = S.year === 'all' ? txs : txs.filter(t => String(t.academicYear) === String(S.year));
+    const totalRec = txsAno.filter(t=>t.type==='receita').reduce((s,t)=>s+t.amount,0);
+    const totalDesp = txsAno.filter(t=>t.type==='despesa').reduce((s,t)=>s+t.amount,0);
+    const fmt = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-    const linkBtn = reportUrl
-      ? `<div style="margin:20px 0">
-           <a href="${reportUrl}" style="background:#3B5BDB;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px">
-             📄 Abrir Relatório Completo
-           </a>
-         </div>`
-      : '';
+    const linkHtml = reportUrl
+      ? `<p style="margin:20px 0"><a href="${reportUrl}"
+           style="background:#3B5BDB;color:#fff;padding:12px 24px;border-radius:8px;
+                  text-decoration:none;font-weight:600;font-size:14px;display:inline-block">
+           📄 Abrir Relatório Completo
+         </a></p>`
+      : `<p style="color:#6b7280;font-size:12px">Relatório não disponível online desta vez.</p>`;
 
-    const emailHtml = `
-      <div style="font-family:-apple-system,Arial,sans-serif;max-width:700px;margin:0 auto;color:#111">
-        <div style="background:linear-gradient(135deg,#3B5BDB,#7C3AED);padding:24px 28px;border-radius:12px 12px 0 0">
-          <h2 style="color:#fff;margin:0;font-size:20px">Gerenciamento de Pagamentos D&B</h2>
-          <p style="color:rgba(255,255,255,.8);margin:4px 0 0;font-size:13px">Relatório — ${yr} · ${now}</p>
-        </div>
-        <div style="background:#fff;padding:24px 28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
-          <p style="color:#374151;margin:0 0 16px">${bodyNote}</p>
-          ${linkBtn}
-          ${emailTableHtml}
-          <p style="color:#9ca3af;font-size:11px;margin:20px 0 0;border-top:1px solid #e5e7eb;padding-top:12px">
-            Enviado automaticamente pelo app Gerenciamento de Pagamentos D&B
-          </p>
-        </div>
-      </div>`;
+    const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+  <div style="background:#3B5BDB;padding:20px 24px;border-radius:8px 8px 0 0">
+    <h2 style="color:#fff;margin:0;font-size:18px">Gerenciamento de Pagamentos D&amp;B</h2>
+    <p style="color:rgba(255,255,255,.8);margin:4px 0 0;font-size:12px">${yr} &middot; ${now}</p>
+  </div>
+  <div style="background:#fff;padding:20px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+    <p style="color:#374151;margin:0 0 16px">${bodyNote}</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+      <tr>
+        <td style="padding:10px;background:#f0fdf4;border-radius:6px;text-align:center;width:50%">
+          <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Total Receitas</div>
+          <div style="font-size:18px;font-weight:700;color:#16a34a">${fmt(totalRec)}</div>
+        </td>
+        <td style="width:12px"></td>
+        <td style="padding:10px;background:#fef2f2;border-radius:6px;text-align:center;width:50%">
+          <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Total Despesas</div>
+          <div style="font-size:18px;font-weight:700;color:#dc2626">${fmt(totalDesp)}</div>
+        </td>
+      </tr>
+    </table>
+    <p style="padding:10px;background:#eff6ff;border-radius:6px;margin:0 0 16px;font-size:13px;color:#1d4ed8">
+      <strong>Saldo: ${fmt(totalRec - totalDesp)}</strong>
+    </p>
+    ${linkHtml}
+    <p style="color:#9ca3af;font-size:11px;margin:16px 0 0;border-top:1px solid #e5e7eb;padding-top:12px">
+      Enviado automaticamente &middot; App Gerenciamento de Pagamentos D&amp;B
+    </p>
+  </div>
+</div>`;
 
     const result = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email:       to,
