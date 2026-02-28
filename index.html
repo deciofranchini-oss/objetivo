@@ -2192,9 +2192,9 @@ async function saveTx(){
       if(dup){toast('⚠️ Transação idêntica já existe! Verifique.',4000);return;}
     }
 
-    // Deriva ano/mês direto do campo de data
-    const academicYear  = +date.slice(0,4);
-    const academicMonth = +date.slice(5,7);
+    // Lê ano letivo e mês de referência dos campos do formulário
+    const academicYear  = +($('f-year')  && $('f-year').value)  || +date.slice(0,4);
+    const academicMonth = +($('f-month') && $('f-month').value) || +date.slice(5,7);
 
     const tx={
       amount, type, categoryKey:$('f-cat').value,
