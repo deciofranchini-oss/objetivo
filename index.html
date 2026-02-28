@@ -1299,7 +1299,11 @@ async function sbConnect() {
 
   btn.textContent = 'Conectando…'; btn.disabled = true;
   try {
-    _sb = supabase.createClient(url, key);
+    _sb = supabase.createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      realtime: { params: { eventsPerSecond: -1 } },
+      global: { fetch: (...args) => fetch(...args) }
+    });
     // Test connection with a lightweight query
     const { error } = await _sb.from('categories').select('key').limit(1);
     if (error) throw new Error(error.message);
@@ -3114,7 +3118,11 @@ async function boot() {
 
   if (url && key) {
     try {
-      _sb = supabase.createClient(url, key);
+      _sb = supabase.createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      realtime: { params: { eventsPerSecond: -1 } },
+      global: { fetch: (...args) => fetch(...args) }
+    });
       const { error } = await _sb.from('categories').select('key').limit(1);
       if (error) throw error;
       $('sb-setup-screen').style.display = 'none';
