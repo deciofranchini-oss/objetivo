@@ -3286,7 +3286,11 @@ function checkLockPin(){
     sessionStorage.setItem('sl-auth','1');
     const ls=$('lock-screen');
     ls.style.animation='lockUnlock .35s ease forwards';
-    setTimeout(()=>{ ls.style.display='none'; },340);
+    setTimeout(()=>{
+      ls.style.display='none';
+      // Carrega dados do app após autenticação bem-sucedida
+      _loadAppData();
+    },340);
   } else {
     for(let i=0;i<6;i++) $('ld-'+i).classList.add('error');
     $('lock-error').style.display='block';
@@ -3314,13 +3318,20 @@ if ('serviceWorker' in navigator) {
 async function _bootApp() {
   // Inicializa EmailJS
   if(typeof emailjs !== 'undefined') emailjs.init(EMAILJS_PUBLIC_KEY);
-  // Auth gate
+
+  // ── Auth gate ─────────────────────────────────────────────────────────────
+  // Se já autenticado nesta sessão, esconde a lock e carrega o app
   if (sessionStorage.getItem('sl-auth') === '1') {
     $('lock-screen').style.display = 'none';
+    await _loadAppData();
   }
-  await _openIDB();          // open local IndexedDB for file attachments
-  await seedIfEmpty();       // seeds Supabase if empty
-  await migratePartyMe();    // migrate legacy party='Me' rows
+  // Se não autenticado, fica na lock screen e aguarda — _loadAppData()
+  // será chamado pelo checkLockPin() após senha correta
+}
+
+async function _loadAppData() {
+  await seedIfEmpty();
+  await migratePartyMe();
   await loadAccordConfig();
   await loadCats();
   await loadParties();
