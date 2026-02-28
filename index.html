@@ -1203,12 +1203,18 @@ async function dbPut(store, val) {
     const row = _txToRow(val);
     if (row.id) {
       // UPDATE
+      // Remove quaisquer campos que não existem na tabela (proteção extra)
+      const VALID_COLS = ['id','amount','type','category_key','party_id','party_legacy','date','academic_year','academic_month','is_late','student','notes','tags','file_id'];
+      Object.keys(row).forEach(k => { if(!VALID_COLS.includes(k)) delete row[k]; });
       console.log('dbPut UPDATE row:', JSON.stringify(row));
       const { data, error } = await _sb.from('transactions').update(row).eq('id', row.id).select('id').single();
       if (error) throw new Error(error.message + (error.details?' | '+error.details:'') + (error.hint?' | hint:'+error.hint:''));
       return data.id;
     } else {
       // INSERT
+      // Remove quaisquer campos que não existem na tabela (proteção extra)
+      const VALID_COLS = ['id','amount','type','category_key','party_id','party_legacy','date','academic_year','academic_month','is_late','student','notes','tags','file_id'];
+      Object.keys(row).forEach(k => { if(!VALID_COLS.includes(k)) delete row[k]; });
       console.log('dbPut INSERT row:', JSON.stringify(row));
       const { data, error } = await _sb.from('transactions').insert(row).select('id').single();
       if (error) throw new Error(error.message + (error.details?' | '+error.details:'') + (error.hint?' | hint:'+error.hint:''));
@@ -3133,6 +3139,8 @@ async function boot() {
     });
       const { error } = await _sb.from('categories').select('key').limit(1);
       if (error) throw error;
+      // Força reload do schema cache do PostgREST (evita erro file_data stale)
+      try { await _sb.rpc('reload_schema'); } catch(_){} // ignora se não existir
       $('sb-setup-screen').style.display = 'none';
       await _bootApp();
       return;
