@@ -1201,13 +1201,15 @@ async function dbPut(store, val) {
     const row = _txToRow(val);
     if (row.id) {
       // UPDATE
+      console.log('dbPut UPDATE row:', JSON.stringify(row));
       const { data, error } = await _sb.from('transactions').update(row).eq('id', row.id).select('id').single();
-      if (error) throw error;
+      if (error) { console.error('Supabase UPDATE error:', error); throw new Error(error.message + ' | details: ' + JSON.stringify(error.details) + ' | hint: ' + error.hint); }
       return data.id;
     } else {
       // INSERT
+      console.log('dbPut INSERT row:', JSON.stringify(row));
       const { data, error } = await _sb.from('transactions').insert(row).select('id').single();
-      if (error) throw error;
+      if (error) { console.error('Supabase INSERT error:', error); throw new Error(error.message + ' | details: ' + JSON.stringify(error.details) + ' | hint: ' + error.hint); }
       return data.id;
     }
   }
@@ -2208,10 +2210,17 @@ async function saveTx(){
   if(S.editId) tx.id=S.editId;
   else tx.createdAt=new Date().toISOString();
 
-  await dbPut('txs',tx);
-  S._pendingFileId=null; S._removeFile=false;
-  toast(S.editId?'✅ Atualizado!':'✅ Salvo!');
-  S.editId=null; await initYearFilter(); nav('txs');
+  console.log('saveTx → tx object:', JSON.stringify(tx));
+  console.log('saveTx → row to insert:', JSON.stringify(_txToRow(tx)));
+  try {
+    await dbPut('txs',tx);
+    S._pendingFileId=null; S._removeFile=false;
+    toast(S.editId?'✅ Atualizado!':'✅ Salvo!');
+    S.editId=null; await initYearFilter(); nav('txs');
+  } catch(e) {
+    console.error('saveTx ERRO COMPLETO:', e);
+    toast('❌ Erro ao salvar: ' + e.message, 6000);
+  }
 }
 
 async function deleteTx(){
