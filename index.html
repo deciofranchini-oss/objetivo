@@ -1104,22 +1104,24 @@ let _sb = null;  // Supabase client instance — set by sbConnect()
 // ── Mapeamentos JS (camelCase) ↔ Postgres (snake_case) ─────────────────────
 
 function _txToRow(tx) {
+  // Allowlist explícito — APENAS colunas que existem na tabela transactions
+  // Qualquer campo extra (fileData, fileName, fileType, createdAt, updatedAt...) é ignorado
   const r = {
-    amount:        Number(tx.amount),
-    type:          tx.type,
-    category_key:  tx.categoryKey,
-    party_id:      tx.partyId  || null,
-    party_legacy:  tx.party    || null,
-    date:          tx.date,
-    academic_year: tx.academicYear,
-    academic_month:tx.academicMonth,
-    is_late:       !!tx.isLate,
-    student:       tx.student  || 'Ambas',
-    notes:         tx.notes    || null,
-    tags:          tx.tags     || null,
+    amount:         Number(tx.amount),
+    type:           tx.type,
+    category_key:   tx.categoryKey,
+    party_id:       tx.partyId   || null,
+    party_legacy:   tx.party     || null,
+    date:           tx.date,
+    academic_year:  tx.academicYear,
+    academic_month: tx.academicMonth,
+    is_late:        !!tx.isLate,
+    student:        tx.student   || 'Ambas',
+    notes:          tx.notes     || null,
+    tags:           tx.tags      || null,
+    file_id:        tx.fileId    || null,
   };
-  if (tx.id)     r.id      = tx.id;
-  if (tx.fileId) r.file_id = tx.fileId;
+  if (tx.id) r.id = tx.id;
   return r;
 }
 
@@ -1203,13 +1205,13 @@ async function dbPut(store, val) {
       // UPDATE
       console.log('dbPut UPDATE row:', JSON.stringify(row));
       const { data, error } = await _sb.from('transactions').update(row).eq('id', row.id).select('id').single();
-      if (error) { console.error('Supabase UPDATE error:', error); throw new Error(error.message + ' | details: ' + JSON.stringify(error.details) + ' | hint: ' + error.hint); }
+      if (error) throw new Error(error.message + (error.details?' | '+error.details:'') + (error.hint?' | hint:'+error.hint:''));
       return data.id;
     } else {
       // INSERT
       console.log('dbPut INSERT row:', JSON.stringify(row));
       const { data, error } = await _sb.from('transactions').insert(row).select('id').single();
-      if (error) { console.error('Supabase INSERT error:', error); throw new Error(error.message + ' | details: ' + JSON.stringify(error.details) + ' | hint: ' + error.hint); }
+      if (error) throw new Error(error.message + (error.details?' | '+error.details:'') + (error.hint?' | hint:'+error.hint:''));
       return data.id;
     }
   }
@@ -2173,57 +2175,58 @@ async function saveTx(){
   if(!amount||isNaN(amount)){toast('⚠️ Informe o valor');return;}
   const date=$('f-date').value; if(!date){toast('⚠️ Informe a data');return;}
 
-  const partyVal=$('f-party').value;
-  const partyId=/^\d+$/.test(partyVal)?+partyVal:null;
-  const type=$('f-type').value;
-  const student=$('f-student').value||'Ambas';
-
-  // Duplicate check (for new TX only)
-  if(!S.editId){
-    const existing=await dbAll('txs');
-    const dup=existing.find(x=>
-      Math.abs(x.amount-amount)<0.01 && x.type===type && x.date===date &&
-      (partyId ? x.partyId===partyId : x.party===partyVal) &&
-      x.categoryKey===$('f-cat').value
-    );
-    if(dup){toast('⚠️ Transação idêntica já existe! Verifique.',4000);return;}
-  }
-
-  // Deriva ano/mês direto do campo de data
-  const academicYear  = +date.slice(0,4);
-  const academicMonth = +date.slice(5,7);
-
-  const tx={
-    amount, type, categoryKey:$('f-cat').value,
-    partyId, party:partyId?null:partyVal,
-    date, academicYear, academicMonth,
-    isLate:$('tog').classList.contains('on'),
-    student, notes:$('f-notes').value, tags:$('f-tags').value,
-    updatedAt:new Date().toISOString()
-  };
-  // File handling
-  if(S._pendingFileId){
-    tx.fileId=S._pendingFileId;
-  } else if(S.editId && !S._removeFile){
-    // Preserve existing fileId when editing without changing file
-    const existing=await dbAll('txs');
-    const orig=existing.find(x=>x.id===S.editId);
-    if(orig?.fileId) tx.fileId=orig.fileId;
-  }
-  // _removeFile=true means user explicitly removed the file
-  if(S.editId) tx.id=S.editId;
-  else tx.createdAt=new Date().toISOString();
-
-  console.log('saveTx → tx object:', JSON.stringify(tx));
-  console.log('saveTx → row to insert:', JSON.stringify(_txToRow(tx)));
   try {
+    const partyVal=$('f-party').value;
+    const partyId=/^\d+$/.test(partyVal)?+partyVal:null;
+    const type=$('f-type').value;
+    const student=($('f-student')&&$('f-student').value)||'Ambas';
+
+    // Duplicate check (for new TX only)
+    if(!S.editId){
+      const existing=await dbAll('txs');
+      const dup=existing.find(x=>
+        Math.abs(x.amount-amount)<0.01 && x.type===type && x.date===date &&
+        (partyId ? x.partyId===partyId : x.party===partyVal) &&
+        x.categoryKey===$('f-cat').value
+      );
+      if(dup){toast('⚠️ Transação idêntica já existe! Verifique.',4000);return;}
+    }
+
+    // Deriva ano/mês direto do campo de data
+    const academicYear  = +date.slice(0,4);
+    const academicMonth = +date.slice(5,7);
+
+    const tx={
+      amount, type, categoryKey:$('f-cat').value,
+      partyId: partyId||null,
+      party:   partyId ? null : (partyVal||null),
+      date, academicYear, academicMonth,
+      isLate:!!($('tog')&&$('tog').classList.contains('on')),
+      student, notes:($('f-notes')&&$('f-notes').value)||null,
+      tags:($('f-tags')&&$('f-tags').value)||null,
+    };
+
+    // File handling
+    if(S._pendingFileId){
+      tx.fileId=S._pendingFileId;
+    } else if(S.editId && !S._removeFile){
+      const existing=await dbAll('txs');
+      const orig=existing.find(x=>x.id===S.editId);
+      if(orig?.fileId) tx.fileId=orig.fileId;
+    }
+
+    if(S.editId) tx.id=S.editId;
+
+    console.log('saveTx → inserting:', JSON.stringify(_txToRow(tx)));
     await dbPut('txs',tx);
     S._pendingFileId=null; S._removeFile=false;
     toast(S.editId?'✅ Atualizado!':'✅ Salvo!');
-    S.editId=null; await initYearFilter(); nav('txs');
+    S.editId=null;
+    await initYearFilter();
+    nav('txs');
   } catch(e) {
-    console.error('saveTx ERRO COMPLETO:', e);
-    toast('❌ Erro ao salvar: ' + e.message, 6000);
+    console.error('saveTx ERRO:', e);
+    toast('❌ ' + (e.message||String(e)), 8000);
   }
 }
 
@@ -2893,7 +2896,11 @@ async function importJSON(file){
       if(!Array.isArray(p.transactions)) throw new Error('"transactions" ausente');
       if(!confirm(`Importar ${p.transactions.length} transações? Os dados atuais serão substituídos.`))return;
       await dbClear('txs');
-      for(const tx of p.transactions) await dbPut('txs',tx);
+      for(const tx of p.transactions){
+        // Strip old IndexedDB file fields that don't exist in Supabase schema
+        delete tx.fileData; delete tx.fileName; delete tx.fileType;
+        await dbPut('txs',tx);
+      }
       if(Array.isArray(p.categories)) for(const c of p.categories) await dbPut('cats',c);
       if(Array.isArray(p.parties))    for(const pt of p.parties)   await dbPut('parties',pt);
       if(p.config?.accord) await dbPut('cfg',{k:'accord',...p.config.accord});
@@ -3036,7 +3043,8 @@ async function migratePartyMe(){
       ...tx,
       partyId: party.id,
       party: null,
-      updatedAt: new Date().toISOString()
+      // strip stale fields that don't exist in Supabase
+      fileData: undefined, fileName: undefined, fileType: undefined,
     });
   }
   if(toFix.length) console.log(`[migration] ${toFix.length} txs migrated → Décio e Bruna (id ${party.id})`);
