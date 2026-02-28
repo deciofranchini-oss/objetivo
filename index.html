@@ -1118,7 +1118,8 @@ function _txToRow(tx) {
     notes:         tx.notes    || null,
     tags:          tx.tags     || null,
   };
-  if (tx.id) r.id = tx.id;
+  if (tx.id)     r.id      = tx.id;
+  if (tx.fileId) r.file_id = tx.fileId;
   return r;
 }
 
@@ -1137,6 +1138,7 @@ function _rowToTx(r) {
     student:       r.student,
     notes:         r.notes,
     tags:          r.tags,
+    fileId:        r.file_id   || null,
     createdAt:     r.created_at,
     updatedAt:     r.updated_at,
   };
@@ -2181,10 +2183,14 @@ async function saveTx(){
     if(dup){toast('⚠️ Transação idêntica já existe! Verifique.',4000);return;}
   }
 
+  // Deriva ano/mês direto do campo de data
+  const academicYear  = +date.slice(0,4);
+  const academicMonth = +date.slice(5,7);
+
   const tx={
     amount, type, categoryKey:$('f-cat').value,
     partyId, party:partyId?null:partyVal,
-    date, academicYear:+$('f-year').value, academicMonth:+$('f-month').value,
+    date, academicYear, academicMonth,
     isLate:$('tog').classList.contains('on'),
     student, notes:$('f-notes').value, tags:$('f-tags').value,
     updatedAt:new Date().toISOString()
