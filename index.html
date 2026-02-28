@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Ledger">
 <meta name="theme-color" content="#FAFAF9">
-<title>School Ledger v5</title>
+<title>Gerenciamento de Pagamentos — Décio &amp; Bruna</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -166,6 +166,10 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
 .leg-item{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--t-3)}
 .leg-swatch{width:8px;height:8px;border-radius:2px;flex-shrink:0}
 .leg-pct{font:500 10px/1 var(--mono);margin-left:auto;color:var(--t-1)}
+.leg-toggle{cursor:pointer;padding:3px 8px;border-radius:100px;transition:opacity .15s,background .1s;user-select:none}
+.leg-toggle:hover{background:var(--fill)}
+.leg-off{opacity:.38}
+.leg-off .leg-swatch{filter:grayscale(1)}
 
 /* ── FORM ── */
 .form-section{margin:20px 20px 0}
@@ -368,23 +372,162 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
   .accord-col{ color:#2E7D55!important; }
   .subtotal-col{ font-weight:700!important; background:#fafafa!important; }
   .late-tag{ font-size:6pt!important; color:#C0392B!important; }
-  #page-rpt::after{ content:'School Ledger — Impresso em ' attr(data-print-date); display:block; font-size:6pt; color:#999; text-align:right; padding-top:6pt; border-top:0.5px solid #ddd; margin-top:8pt; }
+  #page-rpt::after{ content:'Gerenciamento de Pagamentos — Décio & Bruna — Impresso em ' attr(data-print-date); display:block; font-size:6pt; color:#999; text-align:right; padding-top:6pt; border-top:0.5px solid #ddd; margin-top:8pt; }
 }
 </style>
 </head>
 <body>
+
+<!-- ░░ LOCK SCREEN ░░ -->
+<div id="lock-screen" style="
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(160deg,#1a1f3a 0%,#0f1220 60%,#1a1230 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 24px;
+">
+  <div style="text-align:center;margin-bottom:40px">
+    <div style="margin-bottom:16px">
+      <svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="68" height="68" rx="18" fill="url(#lg1)"/>
+        <!-- Graduation cap -->
+        <polygon points="34,16 54,26 34,36 14,26" fill="white" opacity="0.95"/>
+        <path d="M46 30 L46 44 Q34 50 22 44 L22 30" fill="white" opacity="0.3"/>
+        <path d="M46 30.5 L46 44 Q34 50.5 22 44 L22 30.5" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/>
+        <!-- Tassel cord -->
+        <line x1="54" y1="26" x2="54" y2="40" stroke="white" stroke-width="2" opacity="0.7"/>
+        <circle cx="54" cy="42" r="2.5" fill="white" opacity="0.8"/>
+        <!-- R$ symbol subtle -->
+        <text x="34" y="47" font-family="'SF Mono',monospace" font-size="8.5" font-weight="700" fill="white" opacity="0.55" text-anchor="middle">R$</text>
+        <defs>
+          <linearGradient id="lg1" x1="0" y1="0" x2="68" y2="68" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#3B5BDB"/>
+            <stop offset="100%" stop-color="#7C3AED"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <div style="font-size:19px;font-weight:700;color:#fff;letter-spacing:-.02em;line-height:1.2">Gerenciamento de Pagamentos<br><span style="color:rgba(255,255,255,.7);font-weight:400">do Décio e da Bruna</span></div>
+    <div style="font-size:13px;color:rgba(255,255,255,.35);margin-top:6px">Digite a senha para continuar</div>
+  </div>
+
+  <!-- PIN dots display -->
+  <div id="lock-dots" style="display:flex;gap:14px;margin-bottom:36px">
+    <div class="lock-dot" id="ld-0"></div>
+    <div class="lock-dot" id="ld-1"></div>
+    <div class="lock-dot" id="ld-2"></div>
+    <div class="lock-dot" id="ld-3"></div>
+    <div class="lock-dot" id="ld-4"></div>
+    <div class="lock-dot" id="ld-5"></div>
+  </div>
+
+  <!-- Error message -->
+  <div id="lock-error" style="
+    display:none;font-size:13px;color:#ff6b6b;margin-bottom:20px;
+    background:rgba(255,107,107,.12);padding:8px 20px;border-radius:100px;
+    border:1px solid rgba(255,107,107,.2);
+  ">Senha incorreta — tente novamente</div>
+
+  <!-- Numpad -->
+  <div style="display:grid;grid-template-columns:repeat(3,72px);gap:12px">
+    <button class="lock-key" onclick="lockKey('1')">1</button>
+    <button class="lock-key" onclick="lockKey('2')">2</button>
+    <button class="lock-key" onclick="lockKey('3')">3</button>
+    <button class="lock-key" onclick="lockKey('4')">4</button>
+    <button class="lock-key" onclick="lockKey('5')">5</button>
+    <button class="lock-key" onclick="lockKey('6')">6</button>
+    <button class="lock-key" onclick="lockKey('7')">7</button>
+    <button class="lock-key" onclick="lockKey('8')">8</button>
+    <button class="lock-key" onclick="lockKey('9')">9</button>
+    <button class="lock-key lock-key-sm" onclick="lockClear()" style="font-size:12px;color:rgba(255,255,255,.5)">LIMPAR</button>
+    <button class="lock-key" onclick="lockKey('0')">0</button>
+    <button class="lock-key lock-key-del" onclick="lockDel()">⌫</button>
+  </div>
+</div>
+
+<style>
+.lock-dot{
+  width:14px;height:14px;border-radius:50%;
+  background:rgba(255,255,255,.15);
+  border:2px solid rgba(255,255,255,.25);
+  transition:all .15s cubic-bezier(.34,1.56,.64,1);
+}
+.lock-dot.filled{
+  background:#fff;border-color:#fff;
+  transform:scale(1.15);
+  box-shadow:0 0 12px rgba(255,255,255,.5);
+}
+.lock-dot.error{
+  background:#ff6b6b;border-color:#ff6b6b;
+  animation:lockShake .4s ease;
+}
+.lock-key{
+  width:72px;height:72px;border-radius:50%;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff;font-size:24px;font-weight:400;
+  font-family:'Inter',-apple-system,sans-serif;
+  cursor:pointer;transition:all .1s;
+  -webkit-tap-highlight-color:transparent;
+  letter-spacing:0;
+}
+.lock-key:active,.lock-key:hover{
+  background:rgba(255,255,255,.18);
+  transform:scale(.92);
+}
+.lock-key-sm{font-size:11px!important;font-weight:500!important;color:rgba(255,255,255,.45)!important}
+.lock-key-del{font-size:20px!important}
+@keyframes lockShake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-8px)}
+  40%{transform:translateX(8px)}
+  60%{transform:translateX(-5px)}
+  80%{transform:translateX(5px)}
+}
+@keyframes lockUnlock{
+  0%{opacity:1;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.04)}
+  100%{opacity:0;transform:scale(1.08);pointer-events:none}
+}
+</style>
+
 <div id="app">
 
 <!-- PHONE NAVBAR -->
 <div class="navbar" id="navbar">
-  <div class="navbar-title" id="nav-title">School Ledger</div>
-  <div class="yr-badge"><select id="yr-sel"></select></div>
+  <div class="navbar-title" id="nav-title">
+    <span style="display:inline-flex;align-items:center;gap:7px">
+      <svg width="22" height="22" viewBox="0 0 68 68" fill="none" style="border-radius:6px;flex-shrink:0"><rect width="68" height="68" rx="18" fill="url(#nlg)"/><polygon points="34,16 54,26 34,36 14,26" fill="white" opacity="0.95"/><path d="M46 30.5 L46 44 Q34 50.5 22 44 L22 30.5" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/><line x1="54" y1="26" x2="54" y2="40" stroke="white" stroke-width="2" opacity="0.7"/><circle cx="54" cy="42" r="2.5" fill="white" opacity="0.8"/><defs><linearGradient id="nlg" x1="0" y1="0" x2="68" y2="68" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#3B5BDB"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient></defs></svg>
+      <span id="nav-title-txt">Pagamentos</span>
+    </span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="yr-badge"><select id="yr-sel"></select></div>
+    <button onclick="logout()" title="Sair / Bloquear" style="
+      background:none;border:none;cursor:pointer;padding:6px;
+      border-radius:8px;color:var(--t-3);display:flex;align-items:center;
+      transition:background .15s;-webkit-tap-highlight-color:transparent;
+    " onmouseover="this.style.background='var(--fill)'" onmouseout="this.style.background='none'">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
+  </div>
 </div>
 
 <div id="shell">
 <!-- ═══ SIDEBAR ═══ -->
 <aside class="sidebar" id="sidebar">
-  <div class="sb-brand"><div class="sb-app">School Ledger</div><div class="sb-sub">Colégio Objectivo · Lara &amp; Chloe</div></div>
+  <div class="sb-brand">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <svg width="34" height="34" viewBox="0 0 68 68" fill="none" style="border-radius:10px;flex-shrink:0"><rect width="68" height="68" rx="18" fill="url(#sblg)"/><polygon points="34,16 54,26 34,36 14,26" fill="white" opacity="0.95"/><path d="M46 30.5 L46 44 Q34 50.5 22 44 L22 30.5" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/><line x1="54" y1="26" x2="54" y2="40" stroke="white" stroke-width="2" opacity="0.7"/><circle cx="54" cy="42" r="2.5" fill="white" opacity="0.8"/><text x="34" y="47" font-family="monospace" font-size="8.5" font-weight="700" fill="white" opacity="0.5" text-anchor="middle">R$</text><defs><linearGradient id="sblg" x1="0" y1="0" x2="68" y2="68" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#3B5BDB"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient></defs></svg>
+      <div>
+        <div class="sb-app" style="font-size:13px;line-height:1.2">Gerenciamento de<br>Pagamentos</div>
+        <div class="sb-sub" style="margin-top:3px">Décio &amp; Bruna · Lara &amp; Chloe</div>
+      </div>
+    </div>
+  </div>
   <div class="sb-yr"><div class="yr-badge"><select id="yr-sel-sb"></select></div></div>
   <nav class="sb-nav">
     <button class="sb-item on" id="si-dash" onclick="nav('dash')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard<span id="sb-alert-badge" class="sb-badge" style="display:none">!</span></button>
@@ -394,7 +537,20 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
     <button class="sb-item" id="si-cfg" onclick="nav('cfg')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</button>
   </nav>
   <div class="sb-spacer"></div>
-  <div class="sb-foot">v5.0 — Local PWA</div>
+  <div class="sb-foot" style="display:flex;align-items:center;justify-content:space-between">
+    <span>v5.0 — Local PWA</span>
+    <button onclick="logout()" title="Bloquear" style="
+      background:var(--fill);border:none;cursor:pointer;
+      padding:5px 10px;border-radius:8px;font:500 11px/1 var(--f);
+      color:var(--t-3);display:flex;align-items:center;gap:5px;transition:background .15s;
+    ">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>Sair
+    </button>
+  </div>
 </aside>
 
 <!-- ═══ SCROLLER ═══ -->
@@ -568,6 +724,7 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
   <div class="pg-title">Relatório</div>
   <div id="rpt-actions-bar" style="display:flex;gap:8px;padding:12px 20px 4px;flex-wrap:wrap">
     <button class="pill-btn blue" onclick="printReport()">🖨️&nbsp; Imprimir / PDF</button>
+    <button class="pill-btn gray" onclick="openEmailSheet()">✉️&nbsp; Enviar por Email</button>
     <button class="pill-btn gray" onclick="exportCSV()">📥&nbsp; CSV</button>
     <button class="pill-btn gray" id="btn-toggle-fcst" onclick="toggleFcstCols()" title="Mostrar/ocultar colunas de previsão">◆&nbsp; Previsões</button>
   </div>
@@ -752,17 +909,141 @@ body{font-family:var(--f);font-size:16px;line-height:1.5;background:var(--bg);co
 
 <!-- FORECAST CONVERT SHEET -->
 <div class="sheet-bg" id="convert-sheet">
-  <div class="sheet">
+  <div class="sheet" style="max-height:90vh;overflow-y:auto">
     <div class="sheet-grip"></div>
-    <div class="sheet-hdr"><div class="sheet-title">⚡ Converter Previsão</div><button class="sheet-close" onclick="closeSheet('convert-sheet')">Cancelar</button></div>
-    <div style="padding:16px">
-      <p style="font-size:14px;color:var(--t-2);line-height:1.65;margin-bottom:16px">Confirme a data de pagamento e converta esta previsão em transação realizada.</p>
-      <div class="form-card" style="margin-bottom:16px">
-        <div class="field"><span class="field-label">Data pgto.</span><input id="conv-date" type="date"></div>
-        <div class="field"><span class="field-label">Valor (R$)</span><input id="conv-val" type="number" step="0.01"></div>
+    <div class="sheet-hdr">
+      <div class="sheet-title">⚡ Converter em Pagamento</div>
+      <button class="sheet-close" onclick="closeSheet('convert-sheet')">Cancelar</button>
+    </div>
+    <div style="padding:16px 16px 24px">
+
+      <div id="conv-fcst-info" style="
+        margin-bottom:16px;padding:12px 14px;
+        background:var(--violet-l);border:1px solid var(--violet-d);
+        border-radius:var(--r2);font-size:13px;color:var(--violet);
+      "></div>
+
+      <div class="form-card" style="margin-bottom:12px">
+        <div class="field">
+          <span class="field-label">Tipo</span>
+          <select id="conv-type">
+            <option value="PAID">Saída (pago)</option>
+            <option value="RECEIVED">Entrada (recebido)</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="field-label">Valor (R$)</span>
+          <input id="conv-val" type="number" step="0.01" inputmode="decimal" placeholder="0,00">
+        </div>
+        <div class="field">
+          <span class="field-label">Data pagamento</span>
+          <input id="conv-date" type="date">
+        </div>
+        <div class="field">
+          <span class="field-label">Notas</span>
+          <input id="conv-notes" type="text" placeholder="Opcional">
+        </div>
+        <div class="field" style="align-items:center">
+          <span class="field-label">Atraso?</span>
+          <div id="conv-tog" class="toggle" onclick="this.classList.toggle('on')" style="flex-shrink:0"></div>
+        </div>
       </div>
+
+      <!-- Comprovante -->
+      <div style="margin-bottom:16px">
+        <div class="form-label" style="padding:0 2px;margin-bottom:8px">📎 Comprovante</div>
+        <div id="conv-doc-drop" class="doc-drop" onclick="document.getElementById('conv-file-input').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="onConvDocDrop(event)">
+          <input type="file" id="conv-file-input" accept=".pdf,.jpg,.jpeg,.png,.txt" style="display:none" onchange="loadConvFile(event.target.files[0])">
+          <div id="conv-doc-idle"><div style="font-size:20px;margin-bottom:3px">📄</div><div style="font-size:12px;font-weight:500;color:var(--t-2)">Toque para anexar comprovante</div><div style="font-size:11px;color:var(--t-3)">PDF · JPG · PNG</div></div>
+          <div id="conv-file-info" style="display:none;align-items:center;gap:10px">
+            <span id="conv-file-ic" style="font-size:22px">📄</span>
+            <div style="flex:1;min-width:0">
+              <div id="conv-file-nm" style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t-1)"></div>
+              <div id="conv-file-sz" style="font-size:11px;color:var(--t-3);margin-top:1px"></div>
+            </div>
+            <button onclick="clearConvFile(event)" style="background:var(--fill);border:none;border-radius:100px;padding:5px 10px;font:500 12px/1 var(--f);color:var(--t-2);cursor:pointer;flex-shrink:0">Remover</button>
+          </div>
+        </div>
+      </div>
+
       <input type="hidden" id="conv-id">
-      <button class="btn green" onclick="confirmConvert()">✅&nbsp; Confirmar Pagamento</button>
+      <button class="btn green" style="width:100%" onclick="confirmConvert()">✅&nbsp; Confirmar Pagamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ EMAIL SHEET ░░ -->
+<div class="sheet-bg" id="email-sheet">
+  <div class="sheet" style="max-height:85vh;overflow-y:auto">
+    <div class="sheet-grip"></div>
+    <div class="sheet-hdr">
+      <div class="sheet-title">✉️ Enviar Relatório por Email</div>
+      <button class="sheet-close" onclick="closeSheet('email-sheet')">Cancelar</button>
+    </div>
+    <div style="padding:16px 16px 28px">
+
+      <!-- Step 1: generate PDF -->
+      <div id="email-step-1">
+        <p style="font-size:13px;color:var(--t-2);line-height:1.6;margin-bottom:16px">
+          O relatório será gerado como PDF e você poderá enviá-lo pelo seu aplicativo de email preferido.
+        </p>
+        <div class="form-card" style="margin-bottom:16px">
+          <div class="field">
+            <span class="field-label">Destinatário</span>
+            <input id="email-to" type="email" inputmode="email" placeholder="email@exemplo.com" style="flex:1">
+          </div>
+          <div class="field">
+            <span class="field-label">Assunto</span>
+            <input id="email-subject" type="text" value="Relatório de Pagamentos" style="flex:1">
+          </div>
+          <div class="field">
+            <span class="field-label">Mensagem</span>
+            <input id="email-body" type="text" value="Segue o relatório de pagamentos em anexo." style="flex:1">
+          </div>
+        </div>
+
+        <!-- PDF options -->
+        <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg-2);border-radius:var(--r);border:1px solid var(--sep-l)">
+          <div style="font-size:12px;font-weight:600;color:var(--t-2);margin-bottom:10px">📄 Opções do PDF</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t-2);cursor:pointer;margin-bottom:8px">
+            <input type="checkbox" id="email-hide-fcst" style="width:16px;height:16px;accent-color:var(--accent)">
+            Ocultar colunas de previsão
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t-2);cursor:pointer">
+            <input type="checkbox" id="email-year-only" style="width:16px;height:16px;accent-color:var(--accent)">
+            Apenas o ano selecionado (ignorar "Todos")
+          </label>
+        </div>
+
+        <div id="email-gen-status" style="display:none;text-align:center;padding:16px;background:var(--accent-l);border-radius:var(--r);margin-bottom:16px;font-size:13px;color:var(--accent)">
+          <span class="spinner" style="display:inline-block;margin-right:8px"></span>Gerando PDF…
+        </div>
+
+        <button class="btn primary" onclick="generateAndEmail()" id="email-gen-btn">
+          📄&nbsp; Gerar PDF e Abrir Email
+        </button>
+      </div>
+
+      <!-- Step 2: PDF ready -->
+      <div id="email-step-2" style="display:none">
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:48px;margin-bottom:12px">✅</div>
+          <div style="font-size:16px;font-weight:600;color:var(--t-1);margin-bottom:6px">PDF gerado!</div>
+          <div style="font-size:13px;color:var(--t-2);line-height:1.6;margin-bottom:20px">
+            O PDF foi baixado para o seu dispositivo.<br>
+            Abra seu email e anexe o arquivo manualmente.
+          </div>
+          <div style="background:var(--bg-2);border-radius:var(--r);padding:12px 16px;margin-bottom:20px;text-align:left">
+            <div style="font-size:11px;font-weight:600;color:var(--t-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Dados para o email</div>
+            <div id="email-summary" style="font-size:12px;color:var(--t-2);line-height:1.8"></div>
+          </div>
+          <button class="btn primary" onclick="openMailtoLink()" id="email-mailto-btn" style="margin-bottom:10px">
+            ✉️&nbsp; Abrir App de Email
+          </button>
+          <button class="btn secondary" onclick="closeSheet('email-sheet')">Fechar</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -805,7 +1086,7 @@ const dbDel   = (s,k) => new Promise((res,rej) => { const r=db.transaction(s,'re
 const dbClear = s     => new Promise((res,rej) => { const r=db.transaction(s,'readwrite').objectStore(s).clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
 
 /* ─── STATE ─── */
-const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, _pendingFileId:null, _existingFileId:null, _removeFile:false };
+const S = { year: new Date().getFullYear(), tab:'dash', cats:[], parties:[], editId:null, genBase:'last', accord:{type:'pct',pct:50,val:0}, fcstVisible:true, hiddenCats:new Set(), hiddenFcstCats:new Set(), _pendingFileId:null, _existingFileId:null, _removeFile:false, _convFileId:null };
 const MO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MF = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const CAT_PAID  = ['mensalidade','matricula','material','uniforme','extra'];
@@ -830,7 +1111,7 @@ function closeSheet(id){ $(id).classList.remove('open'); }
 
 function partyLabel(tx){
   if(tx.partyId){ const p=S.parties.find(p=>Number(p.id)===Number(tx.partyId)); if(p) return (p.emoji?p.emoji+' ':'')+p.name; }
-  const m={Me:'👤 Eu',Father:'👨 Pai',School:'🏫 Escola',Store:'🏪 Loja',Other:'👥 Outro'};
+  const m={Me:'👤 Décio',Father:'👨 Pai (Décio)',School:'🏫 Escola',Store:'🏪 Loja',Other:'👥 Outro'};
   return m[tx.party]||tx.party||'—';
 }
 
@@ -879,7 +1160,9 @@ function nav(tab){
   if(tab !== 'txs') $('scroller').scrollTop=0;
   const hideYr = tab==='rpt'||tab==='cfg';
   const navYr = document.querySelector('.navbar .yr-badge'); if(navYr) navYr.style.display = hideYr?'none':'flex';
-  $('nav-title').textContent = {dash:'School Ledger',txs:'Transações',add:S.editId?'Editar':'Nova Transação',rpt:'Relatório',cfg:'Configurações'}[tab]||'';
+  const titles={dash:'Pagamentos',txs:'Transações',add:S.editId?'Editar':'Nova Transação',rpt:'Relatório',cfg:'Configurações'};
+  const titleEl=$('nav-title-txt')||$('nav-title');
+  if(titleEl) titleEl.textContent=titles[tab]||'';
   if(tab==='dash'){ renderDash(); }
   if(tab==='txs') { renderTxList(); renderAlerts('tx-alerts'); }
   if(tab==='add' && !S.editId) resetForm();
@@ -996,7 +1279,7 @@ function drawCharts(d,fc){
           <canvas id="cv1" style="width:110px;height:110px"></canvas>
           <div class="donut-name">Financiamento</div>
           <div style="width:100%;display:flex;flex-direction:column;gap:4px">
-            <div class="leg-item"><div class="leg-swatch" style="background:#3B5BDB"></div>Eu<span class="leg-pct">${d.paid>0?(def/d.paid*100).toFixed(0):0}%</span></div>
+            <div class="leg-item"><div class="leg-swatch" style="background:#3B5BDB"></div>Décio &amp; Bruna<span class="leg-pct">${d.paid>0?(def/d.paid*100).toFixed(0):0}%</span></div>
             <div class="leg-item"><div class="leg-swatch" style="background:#C0392B"></div>Pai<span class="leg-pct">${d.paid>0?(d.recv/d.paid*100).toFixed(0):0}%</span></div>
           </div>
         </div>
@@ -1010,15 +1293,15 @@ function drawCharts(d,fc){
     <div class="card" style="margin:0 20px 12px;padding:16px">
       <div class="chart-title">Despesas Realizadas por Mês</div>
       <canvas id="cv3" style="width:100%;display:block"></canvas>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
-        ${CAT_ORDER.map(k=>`<div class="leg-item"><div class="leg-swatch" style="background:${catInfo(k).color}"></div><span>${catInfo(k).label}</span></div>`).join('')}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px" id="leg-confirmed">
+        ${CAT_ORDER.map(k=>{const hi=S.hiddenCats.has(k);return`<div class="leg-item leg-toggle${hi?' leg-off':''}" onclick="toggleCat('${k}','confirmed')"><div class="leg-swatch" style="background:${catInfo(k).color}"></div><span>${catInfo(k).label}</span></div>`;}).join('')}
       </div>
     </div>
     ${hasFcst?`<div class="card" style="margin:0 20px 12px;padding:16px;border-left:3px solid var(--violet)">
       <div class="chart-title" style="color:var(--violet)">◆ Previsões por Categoria / Mês</div>
       <canvas id="cv4" style="width:100%;display:block"></canvas>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
-        ${CAT_ORDER.map(k=>`<div class="leg-item"><div class="leg-swatch" style="background:${FCST_COLORS[k]||'#ccc'}"></div><span>${catInfo(k).label}</span></div>`).join('')}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px" id="leg-forecast">
+        ${CAT_ORDER.map(k=>{const hi=S.hiddenFcstCats.has(k);return`<div class="leg-item leg-toggle${hi?' leg-off':''}" onclick="toggleCat('${k}','forecast')"><div class="leg-swatch" style="background:${FCST_COLORS[k]||'#ccc'}"></div><span>${catInfo(k).label}</span></div>`;}).join('')}
       </div>
     </div>`:''}`;
 
@@ -1046,32 +1329,58 @@ function donut(id,slices,lbl,val,SZ){
   ctx.fillStyle='#000'; ctx.font=`600 11px 'SF Mono','Menlo','Consolas',monospace`; ctx.fillText(val,cx,cy+7);
 }
 
+/* ─── CATEGORY TOGGLE IN CHARTS ─── */
+function toggleCat(k, kind){
+  const set = kind==='forecast' ? S.hiddenFcstCats : S.hiddenCats;
+  if(set.has(k)) set.delete(k); else set.add(k);
+  // Re-render legends in place
+  const legId = kind==='forecast'?'leg-forecast':'leg-confirmed';
+  const legEl=$(legId);
+  if(legEl){
+    const CAT = kind==='forecast'?FCST_COLORS:null;
+    legEl.querySelectorAll('.leg-toggle').forEach(el=>{
+      const key=el.getAttribute('onclick').match(/'([^']+)'/)[1];
+      el.classList.toggle('leg-off', set.has(key));
+    });
+  }
+  // Redraw the appropriate bar chart
+  if(kind==='forecast'){
+    const cv=$('cv4'); if(cv&&cv._fcData) barForecast('cv4',cv._fcData);
+  } else {
+    const cv=$('cv3'); if(cv&&cv._dData) barChart('cv3',cv._dData);
+  }
+}
+
 function barChart(id,d){
   const c=$(id); if(!c)return;
+  c._dData=d; // cache for re-render on toggle
   const par=c.parentElement, W=Math.max((par?(par.getBoundingClientRect().width||par.offsetWidth):320)-32,200);
   const H=100,dpr=Math.min(window.devicePixelRatio||1,2);
   c.width=W*dpr; c.height=H*dpr; c.style.width=W+'px'; c.style.height=H+'px';
   const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
-  const data=(d.byMonth||[]).map(m=>CAT_ORDER.map(k=>m[k]||0));
-  const cols=CAT_ORDER.map(k=>catInfo(k).color);
+  const visibleOrder=CAT_ORDER.filter(k=>!S.hiddenCats.has(k));
+  const data=(d.byMonth||[]).map(m=>visibleOrder.map(k=>m[k]||0));
+  const cols=visibleOrder.map(k=>catInfo(k).color);
   const pL=32,pB=16,pT=6,pR=2,cW=W-pL-pR,cH=H-pT-pB;
   const maxV=Math.max(...data.map(r=>r.reduce((a,b)=>a+b,0)),1);
   const scale=Math.ceil(maxV/2000)*2000||2000;
   for(let i=0;i<=3;i++){ const y=pT+cH*(1-i/3); ctx.strokeStyle='rgba(0,0,0,.05)'; ctx.lineWidth=.6; ctx.beginPath(); ctx.moveTo(pL,y); ctx.lineTo(pL+cW,y); ctx.stroke(); ctx.fillStyle='#A1A1AA'; ctx.textAlign='right'; ctx.font=`7px 'SF Mono','Menlo',monospace`; ctx.fillText((scale/3*i/1000).toFixed(0)+'k',pL-3,y+3); }
   const mW=cW/12,bW=mW*.72,bOff=(mW-bW)/2;
-  // Store bar hit areas for tooltip
   c._bars=[];
-  data.forEach((cats,mi)=>{ const gx=pL+mi*mW+bOff; let yBase=pT+cH; const tot=cats.reduce((a,b)=>a+b,0); cats.forEach((v,ci)=>{ if(!v)return; const bH=Math.max(1,(v/scale)*cH); yBase-=bH; ctx.fillStyle=cols[ci]; ctx.fillRect(gx,yBase,bW,bH); }); ctx.fillStyle='#A1A1AA'; ctx.textAlign='center'; ctx.font=`7px Inter,sans-serif`; ctx.fillText(MO[mi],pL+mi*mW+mW/2,H-2); c._bars.push({x:gx,y:pT,w:bW,h:pT+cH,mi,tot,cats}); });
+  data.forEach((cats,mi)=>{ const gx=pL+mi*mW+bOff; let yBase=pT+cH; const tot=cats.reduce((a,b)=>a+b,0); cats.forEach((v,ci)=>{ if(!v)return; const bH=Math.max(1,(v/scale)*cH); yBase-=bH; ctx.fillStyle=cols[ci]; ctx.fillRect(gx,yBase,bW,bH); }); ctx.fillStyle='#A1A1AA'; ctx.textAlign='center'; ctx.font=`7px Inter,sans-serif`; ctx.fillText(MO[mi],pL+mi*mW+mW/2,H-2); c._bars.push({x:gx,y:pT,w:bW,h:pT+cH,mi,tot,cats:visibleOrder.map((k,i)=>({k,v:cats[i]}))}); });
   attachBarTooltip(c,'confirmed');
 }
 
 function barForecast(id,fc){
   const c=$(id); if(!c)return;
+  c._fcData=fc; // cache for re-render on toggle
   const par=c.parentElement, W=Math.max((par?(par.getBoundingClientRect().width||par.offsetWidth):320)-32,200);
   const H=110,dpr=Math.min(window.devicePixelRatio||1,2);
   c.width=W*dpr; c.height=H*dpr; c.style.width=W+'px'; c.style.height=H+'px';
   const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
-  const data=fc.byMonth||Array(12).fill(null).map(()=>({}));
+  const rawData=fc.byMonth||Array(12).fill(null).map(()=>({}));
+  const visibleOrder=CAT_ORDER.filter(k=>!S.hiddenFcstCats.has(k));
+  const data=rawData.map(m=>{ const r={}; visibleOrder.forEach(k=>{ r[k]=m[k]||0; }); return r; });
   const pL=32,pB=16,pT=6,pR=2,cW=W-pL-pR,cH=H-pT-pB;
   const maxV=Math.max(...data.map(m=>Object.values(m).reduce((a,b)=>a+b,0)),1);
   const scale=Math.ceil(maxV/1000)*1000||1000;
@@ -1080,7 +1389,7 @@ function barForecast(id,fc){
   c._bars=[];
   data.forEach((cats,mi)=>{
     const gx=pL+mi*mW+bOff; let yBase=pT+cH; const tot=Object.values(cats).reduce((a,b)=>a+b,0);
-    CAT_ORDER.forEach(k=>{ const v=cats[k]||0; if(!v)return; const bH=Math.max(1,(v/scale)*cH); yBase-=bH; ctx.fillStyle=FCST_COLORS[k]||'#aaa'; ctx.fillRect(gx,yBase,bW,bH); });
+    visibleOrder.forEach(k=>{ const v=cats[k]||0; if(!v)return; const bH=Math.max(1,(v/scale)*cH); yBase-=bH; ctx.fillStyle=FCST_COLORS[k]||'#aaa'; ctx.fillRect(gx,yBase,bW,bH); });
     ctx.fillStyle='#A1A1AA'; ctx.textAlign='center'; ctx.font=`7px Inter,sans-serif`; ctx.fillText(MO[mi],pL+mi*mW+mW/2,H-2);
     c._bars.push({x:gx,y:pT,w:bW,h:pT+cH,mi,tot,cats});
   });
@@ -1109,9 +1418,13 @@ function attachBarTooltip(canvas, kind){
     if(!bar||!bar.tot){ tip.style.display='none'; return; }
     const lines=[];
     if(kind==='confirmed'){
-      CAT_ORDER.forEach((k,i)=>{ const v=bar.cats[i]; if(v>0) lines.push(`<span style="color:${catInfo(k).color}">■</span> ${catInfo(k).label}: <b>${brl(v)}</b>`); });
+      // cats is array of {k,v} objects (only visible cats)
+      if(Array.isArray(bar.cats)){
+        bar.cats.forEach(({k,v})=>{ if(v>0) lines.push(`<span style="color:${catInfo(k).color}">■</span> ${catInfo(k).label}: <b>${brl(v)}</b>`); });
+      }
     } else {
-      CAT_ORDER.forEach(k=>{ const v=bar.cats[k]||0; if(v>0) lines.push(`<span style="color:${FCST_COLORS[k]||'#aaa'}">■</span> ${catInfo(k).label}: <b>≈${brl(v)}</b>`); });
+      // cats is object {k:v} for all visible forecast cats
+      Object.entries(bar.cats||{}).forEach(([k,v])=>{ if(v>0) lines.push(`<span style="color:${FCST_COLORS[k]||'#aaa'}">■</span> ${catInfo(k).label}: <b>≈${brl(v)}</b>`); });
     }
     tip.innerHTML=`<div style="font-size:11px;opacity:.7;margin-bottom:5px">${MF[bar.mi]} — ${kind==='forecast'?'Previsões':'Realizadas'}</div>${lines.join('<br>')}${bar.tot?`<div style="margin-top:6px;border-top:1px solid rgba(255,255,255,.15);padding-top:5px;font-weight:700">Total: ${kind==='forecast'?'≈':''}${brl(bar.tot)}</div>`:''}`;
     // Position tooltip: above cursor, avoid edge
@@ -1360,22 +1673,73 @@ async function openConvertSheet(id){
   $('conv-id').value=id;
   $('conv-date').value=TODAY;
   $('conv-val').value=r.amount;
+  $('conv-type').value=r.categoryKey==='pensao'?'RECEIVED':'PAID';
+  $('conv-notes').value=r.notes||'';
+  $('conv-tog').classList.remove('on');
+  // Info banner
+  const ci=catInfo(r.categoryKey);
+  $('conv-fcst-info').innerHTML=`◆ <b>${ci.label}</b> · ${MF[r.academicMonth-1]}/${r.academicYear} · Prev. ≈${brl(r.amount)}`;
+  // Reset file upload
+  S._convFileId=null;
+  $('conv-file-input').value='';
+  $('conv-doc-idle').style.display='block';
+  $('conv-file-info').style.display='none';
   $('convert-sheet').classList.add('open');
 }
 
 async function confirmConvert(){
   const id=+$('conv-id').value;
   const date=$('conv-date').value; if(!date){toast('⚠️ Informe a data');return;}
-  const amount=parseFloat($('conv-val').value); if(!amount){toast('⚠️ Informe o valor');return;}
+  const amount=parseFloat($('conv-val').value); if(!amount||isNaN(amount)){toast('⚠️ Informe o valor');return;}
   const rows=await dbAll('txs');
   const r=rows.find(r=>r.id===id); if(!r)return;
-  const updated={...r, type:'PAID', date, amount, updatedAt:new Date().toISOString()};
+  const updated={
+    ...r,
+    type:$('conv-type').value,
+    date, amount,
+    isLate:$('conv-tog').classList.contains('on'),
+    notes:$('conv-notes').value||r.notes,
+    updatedAt:new Date().toISOString()
+  };
+  if(S._convFileId) updated.fileId=S._convFileId;
   await dbPut('txs',updated);
+  S._convFileId=null;
   closeSheet('convert-sheet');
   toast('✅ Convertida em pagamento!');
   await initYearFilter();
   if(S.tab==='dash') renderDash();
   if(S.tab==='txs')  renderTxList();
+}
+
+function onConvDocDrop(e){ e.preventDefault(); $('conv-doc-drop').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) loadConvFile(f); }
+
+async function loadConvFile(f){
+  if(!f)return;
+  const ext=(f.name.split('.').pop()||'').toLowerCase();
+  if(!['pdf','jpg','jpeg','png','txt'].includes(ext)){toast('❌ Use PDF, JPG, PNG ou TXT');return;}
+  if(f.size>15*1024*1024){toast('❌ Arquivo > 15 MB');return;}
+  const icMap={pdf:'📄',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',txt:'📝'};
+  $('conv-doc-idle').style.display='none';
+  $('conv-file-info').style.display='flex';
+  $('conv-file-ic').textContent=icMap[ext]||'📎';
+  $('conv-file-nm').textContent=f.name;
+  $('conv-file-sz').textContent=(f.size/1024).toFixed(1)+' KB';
+  try{
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+      const newId=await dbPut('ai_files',{name:f.name,size:f.size,type:f.type,ext,data:ev.target.result,storedAt:new Date().toISOString()});
+      S._convFileId=newId;
+    };
+    reader.readAsDataURL(f);
+  }catch(e){ toast('❌ Erro ao ler arquivo'); }
+}
+
+function clearConvFile(e){
+  e.stopPropagation();
+  S._convFileId=null;
+  $('conv-file-input').value='';
+  $('conv-doc-idle').style.display='block';
+  $('conv-file-info').style.display='none';
 }
 
 /* ─── STUDENT SELECTOR ─── */
@@ -1853,6 +2217,110 @@ function toggleFcstCols(){
   }
 }
 
+/* ─── LOGOUT ─── */
+function logout(){
+  sessionStorage.removeItem('sl-auth');
+  const ls=$('lock-screen');
+  ls.style.animation='';
+  ls.style.display='flex';
+  // Reset pin state
+  _lockInput='';
+  updateLockDots();
+  $('lock-error').style.display='none';
+  toast('🔒 Sessão encerrada');
+}
+
+/* ─── EMAIL REPORT ─── */
+let _emailPdfBlob=null, _emailMailto='';
+
+function openEmailSheet(){
+  $('email-step-1').style.display='block';
+  $('email-step-2').style.display='none';
+  $('email-gen-status').style.display='none';
+  $('email-gen-btn').disabled=false;
+  _emailPdfBlob=null;
+  const yr=S.year==='all'?new Date().getFullYear():S.year;
+  $('email-subject').value=`Relatório de Pagamentos ${yr}`;
+  $('email-body').value=`Olá,\n\nSegue em anexo o relatório de pagamentos do Colégio Objectivo — ${yr}.\n\nAtenciosamente,\nGerenciamento de Pagamentos`;
+  $('email-sheet').classList.add('open');
+}
+
+async function generateAndEmail(){
+  const btn=$('email-gen-btn');
+  btn.disabled=true;
+  $('email-gen-status').style.display='block';
+
+  try{
+    // Ensure report is rendered
+    if(S.tab!=='rpt'){ nav('rpt'); await new Promise(r=>setTimeout(r,500)); }
+    else if(!$('rpt-content').querySelector('.rpt-card')){ await renderReport(); await new Promise(r=>setTimeout(r,300)); }
+
+    // Temporarily apply hide-fcst if checked
+    const hideFcst=$('email-hide-fcst').checked;
+    if(hideFcst) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='none');
+
+    await new Promise(r=>setTimeout(r,100));
+
+    // Use browser print to PDF — generate via print dialog with filename hint
+    // Also generate a downloadable HTML snapshot for email attachment
+    const yr=S.year==='all'?'todos':S.year;
+    const filename=`relatorio-pagamentos-${yr}.pdf`;
+
+    // Build email data
+    const to=$('email-to').value.trim();
+    const subject=encodeURIComponent($('email-subject').value||'Relatório de Pagamentos');
+    const bodyText=$('email-body').value||'Segue o relatório em anexo.';
+
+    // Download a self-contained HTML version of the report as fallback attachment
+    const rptNode=$('rpt-content');
+    const styles=[...document.styleSheets].map(s=>{ try{ return [...s.cssRules].map(r=>r.cssText).join('\n'); }catch(e){return '';} }).join('\n');
+    const htmlContent=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório — ${yr}</title><style>
+      body{font-family:Inter,-apple-system,sans-serif;font-size:12px;color:#18181B;background:#fff;padding:20px}
+      ${styles}
+      .fcst-group{${hideFcst?'display:none!important':''}}
+    </style></head><body><h2 style="margin-bottom:16px;color:#3B5BDB">Gerenciamento de Pagamentos — ${yr}</h2>
+    <p style="font-size:11px;color:#71717A;margin-bottom:16px">Gerado em ${new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+    ${rptNode.innerHTML}</body></html>`;
+
+    const htmlBlob=new Blob([htmlContent],{type:'text/html;charset=utf-8'});
+    const htmlUrl=URL.createObjectURL(htmlBlob);
+    const a=document.createElement('a');
+    a.href=htmlUrl; a.download=filename.replace('.pdf','.html');
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(htmlUrl),3000);
+
+    // Restore fcst columns
+    if(hideFcst && S.fcstVisible) document.querySelectorAll('.fcst-group').forEach(el=>el.style.display='');
+
+    // Build mailto link
+    const nl='%0D%0A';
+    const bodyEncoded=encodeURIComponent(bodyText)+nl+nl+encodeURIComponent(`📎 Arquivo anexado: ${filename.replace('.pdf','.html')}`);
+    _emailMailto=`mailto:${encodeURIComponent(to)}?subject=${subject}&body=${bodyEncoded}`;
+
+    // Show step 2
+    $('email-gen-status').style.display='none';
+    $('email-step-1').style.display='none';
+    $('email-step-2').style.display='block';
+    $('email-summary').innerHTML=`
+      <b>Para:</b> ${to||'(não informado)'}<br>
+      <b>Assunto:</b> ${$('email-subject').value}<br>
+      <b>Arquivo:</b> ${filename.replace('.pdf','.html')}
+    `;
+
+    toast('✅ Relatório gerado e baixado!');
+  }catch(e){
+    console.error('Email gen error:',e);
+    toast('❌ Erro ao gerar relatório: '+e.message);
+    btn.disabled=false;
+    $('email-gen-status').style.display='none';
+  }
+}
+
+function openMailtoLink(){
+  if(_emailMailto) window.open(_emailMailto,'_blank');
+  else toast('⚠️ Gere o PDF primeiro');
+}
+
 async function printReport(){
   // Navigate to report tab so it's rendered and visible
   if(S.tab !== 'rpt'){
@@ -2208,11 +2676,59 @@ async function migratePartyMe(){
   await loadParties();
 }
 
+/* ─── LOCK SCREEN ─── */
+const LOCK_PIN = '191291';
+let _lockInput = '';
+
+function lockKey(digit){
+  if(_lockInput.length >= 6) return;
+  _lockInput += digit;
+  updateLockDots();
+  if(_lockInput.length === 6) setTimeout(checkLockPin, 80);
+}
+function lockDel(){
+  if(!_lockInput.length) return;
+  _lockInput = _lockInput.slice(0,-1);
+  updateLockDots();
+}
+function lockClear(){
+  _lockInput = '';
+  updateLockDots();
+  $('lock-error').style.display='none';
+}
+function updateLockDots(){
+  for(let i=0;i<6;i++){
+    const d=$('ld-'+i);
+    d.classList.toggle('filled', i < _lockInput.length);
+    d.classList.remove('error');
+  }
+}
+function checkLockPin(){
+  if(_lockInput === LOCK_PIN){
+    sessionStorage.setItem('sl-auth','1');
+    const ls=$('lock-screen');
+    ls.style.animation='lockUnlock .35s ease forwards';
+    setTimeout(()=>{ ls.style.display='none'; },340);
+  } else {
+    for(let i=0;i<6;i++) $('ld-'+i).classList.add('error');
+    $('lock-error').style.display='block';
+    setTimeout(()=>{
+      _lockInput='';
+      updateLockDots();
+    }, 800);
+  }
+}
+
 /* ─── SERVICE WORKER ─── */
 if('serviceWorker'in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 /* ─── BOOT ─── */
 async function boot(){
+  // Auth gate — show lock screen if not authenticated this session
+  if(sessionStorage.getItem('sl-auth')==='1'){
+    $('lock-screen').style.display='none';
+  }
+  // App init (runs behind lock screen, ready when unlocked)
   await openDB();
   await seedIfEmpty();
   await migratePartyMe();
